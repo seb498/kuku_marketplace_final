@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "575455968628",
+    "project_id": "kuku-marketplace",
+    "storage_bucket": "kuku-marketplace.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:575455968628:android:1f9d490c6fe459d2d38021",
+        "android_client_info": {
+          "package_name": "com.example.kuku_marketplace"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA_vOWQVP8mTZk4eiETPPMn9i9hff_QJOk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
