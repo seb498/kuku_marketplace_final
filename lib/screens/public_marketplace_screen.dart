@@ -22,11 +22,7 @@ class _PublicMarketplaceScreenState extends State<PublicMarketplaceScreen> {
       snapshot,
     ) {
       return snapshot.docs
-          .map((doc) {
-            final data = doc.data();
-            return Product.fromMap(doc.id, data);
-          })
-          .whereType<Product>()
+          .map((doc) => Product.fromMap(doc.id, doc.data()))
           .where((product) {
             final matchesSearch =
                 _searchQuery.isEmpty ||
@@ -42,11 +38,19 @@ class _PublicMarketplaceScreenState extends State<PublicMarketplaceScreen> {
     });
   }
 
+  Future<String> _getFarmerEmail(String farmerId) async {
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(farmerId)
+        .get();
+    return doc.data()?['email'] ?? 'Unknown Farmer';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Kuku Market - Explore Products"),
+        title: const Text("Kuku Marketplace"),
         actions: [
           TextButton(
             onPressed: () {
@@ -58,32 +62,61 @@ class _PublicMarketplaceScreenState extends State<PublicMarketplaceScreen> {
             child: const Text("Login", style: TextStyle(color: Colors.white)),
           ),
         ],
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF8BC34A), Color(0xFF558B2F)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(12.0),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFFF1F8E9), Colors.white],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            // Search field
             TextField(
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Search products...',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               onChanged: (value) => setState(() => _searchQuery = value),
             ),
             const SizedBox(height: 10),
+
+            // Category dropdown
             DropdownButtonFormField<String>(
               value: _selectedCategory,
               items: _categories
                   .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
                   .toList(),
               onChanged: (val) => setState(() => _selectedCategory = val!),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Filter by Category',
-                border: OutlineInputBorder(),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
+
+            // Products list
             Expanded(
               child: StreamBuilder<List<Product>>(
                 stream: _getProducts(),
@@ -101,55 +134,56 @@ class _PublicMarketplaceScreenState extends State<PublicMarketplaceScreen> {
                   return ListView.builder(
                     itemCount: products.length,
                     itemBuilder: (context, index) {
-                      final p = products[index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 3,
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.all(12),
-                          leading: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              p.imageUrl,
-                              width: 60,
-                              height: 60,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const Icon(Icons.broken_image),
-                              loadingBuilder: (context, child, progress) {
-                                if (progress == null) return child;
-                                return const SizedBox(
-                                  width: 60,
-                                  height: 60,
-                                  child: Center(
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
-                                );
-                              },
+                      final product = products[index];
+
+                      return FutureBuilder<String>(
+                        future: _getFarmerEmail(product.farmerId),
+                        builder: (context, farmerSnapshot) {
+                          final farmerEmail =
+                              farmerSnapshot.data ?? 'Loading...';
+
+                          return Card(
+                            margin: const EdgeInsets.symmetric(vertical: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                          ),
-                          title: Text(
-                            p.name,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text("Ksh ${p.price} • Qty: ${p.quantity}"),
-                          trailing: ElevatedButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const LoginScreen(),
+                            elevation: 2,
+                            child: ListTile(
+                              title: Text(
+                                product.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
                                 ),
-                              );
-                            },
-                            child: const Text("Login to Order"),
-                          ),
-                        ),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Ksh ${product.price} • Qty: ${product.quantity}",
+                                  ),
+                                  Text("👨‍🌾 $farmerEmail"),
+                                ],
+                              ),
+                              trailing: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF558B2F),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const LoginScreen(),
+                                    ),
+                                  );
+                                },
+                                child: const Text("Login to Order"),
+                              ),
+                            ),
+                          );
+                        },
                       );
                     },
                   );

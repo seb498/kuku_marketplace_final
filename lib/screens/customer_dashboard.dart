@@ -4,11 +4,12 @@ import 'package:flutter/material.dart';
 
 import '../models/product_model.dart';
 import 'logout_screen.dart';
-import 'order_screen.dart';
 import 'my_orders_screen.dart';
+import 'place_order_screen.dart';
+import 'product_detail_screen.dart'; // Add this import
 
 class CustomerDashboard extends StatefulWidget {
-  const CustomerDashboard({super.key});
+  const CustomerDashboard({Key? key}) : super(key: key);
 
   @override
   State<CustomerDashboard> createState() => _CustomerDashboardState();
@@ -17,7 +18,6 @@ class CustomerDashboard extends StatefulWidget {
 class _CustomerDashboardState extends State<CustomerDashboard> {
   String _searchQuery = '';
   String _selectedCategory = 'All';
-
   final List<String> _categories = ['All', 'Eggs', 'Meat', 'Live Birds'];
 
   Stream<List<Product>> _getProducts() {
@@ -25,11 +25,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
       snapshot,
     ) {
       return snapshot.docs
-          .map((doc) {
-            final data = doc.data();
-            return Product.fromMap(doc.id, data);
-          })
-          .whereType<Product>()
+          .map((doc) => Product.fromMap(doc.id, doc.data()))
           .where((product) {
             final matchesSearch =
                 _searchQuery.isEmpty ||
@@ -45,10 +41,79 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
     });
   }
 
+  Future<Map<String, dynamic>> _getFarmerRating(String farmerId) async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('ratings')
+        .doc(farmerId)
+        .collection('reviews')
+        .get();
+
+    if (snapshot.docs.isEmpty) return {'average': 0.0, 'count': 0};
+
+    double total = 0;
+    for (var doc in snapshot.docs) {
+      final rating = doc.data()['rating'];
+      if (rating is num) total += rating.toDouble();
+    }
+
+    double average = total / snapshot.docs.length;
+    return {'average': average, 'count': snapshot.docs.length};
+  }
+
+  Widget _placeholderImage(String name) {
+    return Container(
+      width: 60,
+      height: 60,
+      decoration: BoxDecoration(
+        color: Colors.green.shade300,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : '?',
+        style: const TextStyle(fontSize: 24, color: Colors.white),
+      ),
+    );
+  }
+
+  Widget _buildProductImage(String imageUrl, String name) {
+    if (imageUrl.isEmpty) return _placeholderImage(name);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Image.network(
+        imageUrl,
+        width: 60,
+        height: 60,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _placeholderImage(name),
+      ),
+    );
+  }
+
+  Widget _buildRatingStars(double avg, int count) {
+    return Row(
+      children: [
+        ...List.generate(
+          5,
+          (index) => Icon(
+            Icons.star,
+            size: 18,
+            color: avg >= index + 1 ? Colors.orange : Colors.grey,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text("($count)", style: const TextStyle(fontSize: 12)),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.green[50],
       appBar: AppBar(
+        backgroundColor: Colors.green,
         title: const Text("Customer Dashboard"),
         actions: [
           IconButton(
@@ -75,7 +140,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(12),
         child: Column(
           children: [
             TextField(
@@ -103,12 +168,19 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
               child: StreamBuilder<List<Product>>(
                 stream: _getProducts(),
                 builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Text(
+                        "Error: ${snapshot.error}",
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    );
+                  }
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
 
                   final products = snapshot.data ?? [];
-
                   if (products.isEmpty) {
                     return const Center(child: Text("No products available."));
                   }
@@ -116,56 +188,98 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                   return ListView.builder(
                     itemCount: products.length,
                     itemBuilder: (context, index) {
-                      final p = products[index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 3,
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.all(12),
-                          leading: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              p.imageUrl,
-                              width: 60,
-                              height: 60,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const Icon(Icons.broken_image),
-                              loadingBuilder:
-                                  (context, child, loadingProgress) {
-                                    if (loadingProgress == null) return child;
-                                    return const SizedBox(
-                                      width: 60,
-                                      height: 60,
-                                      child: Center(
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      ),
-                                    );
-                                  },
+                      final product = products[index];
+                      final inStock = product.quantity > 0;
+
+                      return FutureBuilder<Map<String, dynamic>>(
+                        future: _getFarmerRating(product.farmerId),
+                        builder: (context, ratingSnap) {
+                          final rating =
+                              ratingSnap.data ?? {'average': 0.0, 'count': 0};
+                          final avg = rating['average'] as double;
+                          final count = rating['count'] as int;
+
+                          return Card(
+                            margin: const EdgeInsets.symmetric(vertical: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                          ),
-                          title: Text(
-                            p.name,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text("Ksh ${p.price} • Qty: ${p.quantity}"),
-                          trailing: ElevatedButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => OrderScreen(product: p),
-                                ),
-                              );
-                            },
-                            child: const Text("Order"),
-                          ),
-                        ),
+                            elevation: 3,
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  ListTile(
+                                    leading: _buildProductImage(
+                                      product.imageUrl,
+                                      product.name,
+                                    ),
+                                    title: Text(
+                                      product.name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    subtitle: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "Ksh ${product.price} • Qty: ${product.quantity}",
+                                        ),
+                                        Text(
+                                          "Category: ${product.description}",
+                                        ),
+                                        const SizedBox(height: 4),
+                                        _buildRatingStars(avg, count),
+                                      ],
+                                    ),
+                                    trailing: inStock
+                                        ? ElevatedButton(
+                                            onPressed: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      PlaceOrderScreen(
+                                                        product: product,
+                                                      ),
+                                                ),
+                                              );
+                                            },
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  Colors.green[700],
+                                            ),
+                                            child: const Text("Order"),
+                                          )
+                                        : const Text(
+                                            "Out of Stock",
+                                            style: TextStyle(color: Colors.red),
+                                          ),
+                                  ),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton(
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => ProductDetailScreen(
+                                              product: product,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      child: const Text("View Details"),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
                       );
                     },
                   );

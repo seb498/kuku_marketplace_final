@@ -13,7 +13,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   final AuthService _authService = AuthService();
 
-  // Default role
   String _selectedRole = 'farmer';
   final List<String> _roles = ['farmer', 'customer', 'admin'];
 
@@ -38,25 +37,84 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Register")),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
+      appBar: AppBar(
+        title: const Text("Register"),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF8BC34A), Color(0xFF558B2F)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFFF1F8E9), Colors.white],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        padding: const EdgeInsets.all(24),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const Text(
+              "Create an Account",
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF33691E),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 30),
+
+            // Email
             TextField(
               controller: _emailController,
-              decoration: const InputDecoration(labelText: "Email"),
+              keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(
+                labelText: "Email",
+                filled: true,
+                fillColor: Colors.white,
+                prefixIcon: const Icon(Icons.email),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
+
+            // Password
             TextField(
               controller: _passwordController,
-              decoration: const InputDecoration(labelText: "Password"),
               obscureText: true,
+              decoration: InputDecoration(
+                labelText: "Password",
+                filled: true,
+                fillColor: Colors.white,
+                prefixIcon: const Icon(Icons.lock),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
+
+            // Role Dropdown
             DropdownButtonFormField<String>(
               value: _selectedRole,
-              decoration: const InputDecoration(labelText: "Select Role"),
+              decoration: InputDecoration(
+                labelText: "Select Role",
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
               items: _roles
                   .map(
                     (role) => DropdownMenuItem(
@@ -69,8 +127,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 setState(() => _selectedRole = value!);
               },
             ),
+
             const SizedBox(height: 24),
-            ElevatedButton(onPressed: _register, child: const Text("Register")),
+
+            // Register Button
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF558B2F),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: _register,
+              child: const Text(
+                "Register",
+                style: TextStyle(fontSize: 18, color: Colors.white),
+              ),
+            ),
           ],
         ),
       ),

@@ -70,8 +70,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
         'farmerId': user.uid,
       };
 
-      print("📦 Saving product: $productData");
-
       if (widget.product != null) {
         await FirebaseFirestore.instance
             .collection('products')
@@ -93,10 +91,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
       Navigator.pop(context);
     } catch (e) {
-      print("❌ Error saving product: $e");
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Error: ${e.toString()}")));
+      ).showSnackBar(SnackBar(content: Text("❌ Error: ${e.toString()}")));
     } finally {
       setState(() => _isLoading = false);
     }
@@ -107,13 +104,22 @@ class _AddProductScreenState extends State<AddProductScreen> {
     final isEdit = widget.product != null;
 
     return Scaffold(
-      appBar: AppBar(title: Text(isEdit ? "Edit Product" : "Add Product")),
-      body: Padding(
+      appBar: AppBar(
+        title: Text(isEdit ? "Edit Product" : "Add Product"),
+        backgroundColor: Colors.green.shade700,
+      ),
+      body: Container(
+        color: Colors.green.shade50,
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: ListView(
             children: [
+              const Text(
+                "Product Details",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: _selectedCategory,
                 items: _categories.map((cat) {
@@ -129,23 +135,36 @@ class _AddProductScreenState extends State<AddProductScreen> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _priceController,
-                decoration: const InputDecoration(labelText: "Price"),
+                decoration: const InputDecoration(
+                  labelText: "Price",
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.attach_money),
+                ),
                 keyboardType: TextInputType.number,
                 validator: (value) => value!.isEmpty ? "Required" : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _quantityController,
-                decoration: const InputDecoration(labelText: "Quantity"),
+                decoration: const InputDecoration(
+                  labelText: "Quantity",
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.inventory),
+                ),
                 keyboardType: TextInputType.number,
                 validator: (value) => value!.isEmpty ? "Required" : null,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               _isLoading
                   ? const Center(child: CircularProgressIndicator())
-                  : ElevatedButton(
+                  : ElevatedButton.icon(
                       onPressed: _submit,
-                      child: Text(isEdit ? "Update Product" : "Submit Product"),
+                      icon: Icon(isEdit ? Icons.update : Icons.add),
+                      label: Text(isEdit ? "Update Product" : "Submit Product"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade700,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
                     ),
             ],
           ),

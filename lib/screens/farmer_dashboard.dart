@@ -57,11 +57,32 @@ class _FarmerDashboardState extends State<FarmerDashboard> {
     });
   }
 
+  Widget _buildPlaceholder(String text) {
+    return Container(
+      width: 60,
+      height: 60,
+      decoration: BoxDecoration(
+        color: Colors.green.shade300,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        text.isNotEmpty ? text[0].toUpperCase() : '?',
+        style: const TextStyle(
+          fontSize: 28,
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Farmer Dashboard'),
+        backgroundColor: Colors.green[700],
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -72,10 +93,12 @@ class _FarmerDashboardState extends State<FarmerDashboard> {
                 MaterialPageRoute(builder: (_) => const LogoutScreen()),
               );
             },
+            tooltip: 'Logout',
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.green[700],
         onPressed: () {
           Navigator.push(
             context,
@@ -90,10 +113,16 @@ class _FarmerDashboardState extends State<FarmerDashboard> {
         child: Column(
           children: [
             TextField(
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Search Products',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.search, color: Colors.green),
+                border: const OutlineInputBorder(),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(
+                    color: Colors.green.shade700,
+                    width: 2,
+                  ),
+                ),
               ),
               onChanged: (value) => setState(() => _searchQuery = value),
             ),
@@ -104,9 +133,15 @@ class _FarmerDashboardState extends State<FarmerDashboard> {
                   .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
                   .toList(),
               onChanged: (value) => setState(() => _selectedCategory = value!),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Filter by Category',
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(
+                    color: Colors.green.shade700,
+                    width: 2,
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 10),
@@ -115,7 +150,11 @@ class _FarmerDashboardState extends State<FarmerDashboard> {
                 stream: _getFilteredProducts(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
+                    return Center(
+                      child: CircularProgressIndicator(
+                        color: Colors.green[700],
+                      ),
+                    );
                   }
 
                   final products = snapshot.data ?? [];
@@ -132,46 +171,55 @@ class _FarmerDashboardState extends State<FarmerDashboard> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        elevation: 3,
+                        elevation: 4,
                         margin: const EdgeInsets.symmetric(vertical: 8),
                         child: ListTile(
                           contentPadding: const EdgeInsets.all(12),
                           leading: ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              p.imageUrl,
-                              width: 60,
-                              height: 60,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const Icon(Icons.broken_image),
-                              loadingBuilder:
-                                  (context, child, loadingProgress) {
-                                    if (loadingProgress == null) return child;
-                                    return const SizedBox(
-                                      width: 60,
-                                      height: 60,
-                                      child: Center(
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                            ),
+                            child: p.imageUrl.isEmpty
+                                ? _buildPlaceholder(p.name)
+                                : Image.network(
+                                    p.imageUrl,
+                                    width: 60,
+                                    height: 60,
+                                    fit: BoxFit.cover,
+                                    loadingBuilder:
+                                        (context, child, loadingProgress) {
+                                          if (loadingProgress == null) {
+                                            return child;
+                                          }
+                                          return SizedBox(
+                                            width: 60,
+                                            height: 60,
+                                            child: Center(
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: Colors.green[700],
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            _buildPlaceholder(p.name),
+                                  ),
                           ),
                           title: Text(
                             p.name,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                           ),
                           subtitle: Text("Ksh ${p.price} | Qty: ${p.quantity}"),
                           trailing: Wrap(
                             spacing: 12,
                             children: [
                               IconButton(
-                                icon: const Icon(
+                                icon: Icon(
                                   Icons.edit,
-                                  color: Colors.blue,
+                                  color: Colors.green[700],
                                 ),
                                 onPressed: () {
                                   Navigator.push(
@@ -180,15 +228,17 @@ class _FarmerDashboardState extends State<FarmerDashboard> {
                                       builder: (_) =>
                                           AddProductScreen(product: p),
                                     ),
-                                  );
+                                  ).then((_) => setState(() {}));
                                 },
+                                tooltip: 'Edit Product',
                               ),
                               IconButton(
-                                icon: const Icon(
+                                icon: Icon(
                                   Icons.delete,
-                                  color: Colors.red,
+                                  color: Colors.red[700],
                                 ),
                                 onPressed: () => _deleteProduct(p.id),
+                                tooltip: 'Delete Product',
                               ),
                             ],
                           ),

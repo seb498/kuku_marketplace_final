@@ -4,8 +4,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class RateFarmerScreen extends StatefulWidget {
   final String farmerId;
+  final String orderId; // 👈 New
 
-  const RateFarmerScreen({super.key, required this.farmerId});
+  const RateFarmerScreen({
+    super.key,
+    required this.farmerId,
+    required this.orderId,
+  });
 
   @override
   State<RateFarmerScreen> createState() => _RateFarmerScreenState();
@@ -30,6 +35,7 @@ class _RateFarmerScreenState extends State<RateFarmerScreen> {
     setState(() => _isSubmitting = true);
 
     try {
+      // Save the rating to the farmer's collection
       await FirebaseFirestore.instance
           .collection('ratings')
           .doc(widget.farmerId)
@@ -40,6 +46,12 @@ class _RateFarmerScreenState extends State<RateFarmerScreen> {
             'customerId': user.uid,
             'timestamp': FieldValue.serverTimestamp(),
           });
+
+      // Update the order document to mark it as rated
+      await FirebaseFirestore.instance
+          .collection('orders')
+          .doc(widget.orderId)
+          .update({'isRated': true});
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Thanks for your feedback!")),
@@ -58,7 +70,10 @@ class _RateFarmerScreenState extends State<RateFarmerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Rate Farmer")),
+      appBar: AppBar(
+        title: const Text("Rate Farmer"),
+        backgroundColor: Colors.green,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -94,8 +109,18 @@ class _RateFarmerScreenState extends State<RateFarmerScreen> {
             _isSubmitting
                 ? const CircularProgressIndicator()
                 : ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 12,
+                        horizontal: 24,
+                      ),
+                    ),
                     onPressed: _submitRating,
-                    child: const Text("Submit Rating"),
+                    child: const Text(
+                      "Submit Rating",
+                      style: TextStyle(fontSize: 16),
+                    ),
                   ),
           ],
         ),
