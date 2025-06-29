@@ -49,7 +49,7 @@ class _OrderScreenState extends State<OrderScreen> {
         const SnackBar(content: Text("✅ Order placed successfully!")),
       );
 
-      Navigator.pop(context); // Return to previous screen
+      Navigator.pop(context); // Return to CustomerDashboard
     } catch (e, stack) {
       print('Order error: $e');
       print('Stack: $stack');

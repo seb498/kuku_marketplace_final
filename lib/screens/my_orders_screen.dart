@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'rate_farmer_screen.dart';
+import 'rate_farmer_screen.dart'; // 👈 Add this import
 
 class MyOrdersScreen extends StatelessWidget {
   const MyOrdersScreen({super.key});
@@ -20,7 +20,6 @@ class MyOrdersScreen extends StatelessWidget {
     final ordersStream = FirebaseFirestore.instance
         .collection('orders')
         .where('customerId', isEqualTo: user.uid)
-        .orderBy('timestamp', descending: true)
         .snapshots();
 
     return Scaffold(
@@ -49,7 +48,6 @@ class MyOrdersScreen extends StatelessWidget {
                 margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 elevation: 3,
                 child: ListTile(
-                  contentPadding: const EdgeInsets.all(12),
                   leading: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: Image.network(
@@ -70,28 +68,18 @@ class MyOrdersScreen extends StatelessWidget {
                   ),
                   trailing: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(Icons.check_circle, color: Colors.green),
                       TextButton(
                         onPressed: () {
-                          final farmerId = data['farmerId'];
-                          if (farmerId != null &&
-                              farmerId.toString().isNotEmpty) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    RateFarmerScreen(farmerId: farmerId),
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => RateFarmerScreen(
+                                farmerId: data['farmerId'] ?? '',
                               ),
-                            );
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("No farmer ID found for rating."),
-                              ),
-                            );
-                          }
+                            ),
+                          );
                         },
                         child: const Text("Rate"),
                       ),
