@@ -10,7 +10,7 @@ import 'product_detail_screen.dart';
 import 'profile_update_screen.dart';
 
 class CustomerDashboard extends StatefulWidget {
-  const CustomerDashboard({Key? key}) : super(key: key);
+  const CustomerDashboard({super.key});
 
   @override
   State<CustomerDashboard> createState() => _CustomerDashboardState();

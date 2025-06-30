@@ -7,7 +7,7 @@ import '../models/product_model.dart';
 class PlaceOrderScreen extends StatefulWidget {
   final Product product;
 
-  const PlaceOrderScreen({Key? key, required this.product}) : super(key: key);
+  const PlaceOrderScreen({super.key, required this.product});
 
   @override
   State<PlaceOrderScreen> createState() => _PlaceOrderScreenState();

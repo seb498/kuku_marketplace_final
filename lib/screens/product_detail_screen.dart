@@ -7,8 +7,7 @@ import 'chat_screen.dart'; // ✅ Import the chat screen
 class ProductDetailScreen extends StatelessWidget {
   final Product product;
 
-  const ProductDetailScreen({Key? key, required this.product})
-    : super(key: key);
+  const ProductDetailScreen({super.key, required this.product});
 
   Future<List<Map<String, dynamic>>> _getReviews(String farmerId) async {
     final snapshot = await FirebaseFirestore.instance

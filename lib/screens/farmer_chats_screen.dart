@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'chat_screen.dart';
 
 class FarmerChatsScreen extends StatefulWidget {
-  const FarmerChatsScreen({Key? key}) : super(key: key);
+  const FarmerChatsScreen({super.key});
 
   @override
   _FarmerChatsScreenState createState() => _FarmerChatsScreenState();

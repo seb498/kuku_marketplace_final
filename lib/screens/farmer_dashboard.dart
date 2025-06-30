@@ -6,7 +6,7 @@ import 'chat_screen.dart';
 import 'add_product_screen.dart';
 
 class FarmerDashboard extends StatefulWidget {
-  const FarmerDashboard({Key? key}) : super(key: key);
+  const FarmerDashboard({super.key});
 
   @override
   State<FarmerDashboard> createState() => _FarmerDashboardState();
