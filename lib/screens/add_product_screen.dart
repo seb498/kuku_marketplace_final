@@ -50,22 +50,52 @@ class _AddProductScreenState extends State<AddProductScreen> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception("User not logged in");
 
-      final productData = {
-        'name': _selectedSubcategory,
-        'category': _selectedCategory,
-        'subcategory': _selectedSubcategory,
-        'unit': unit,
-        'price': double.parse(_priceController.text.trim()),
-        'quantity': int.parse(_quantityController.text.trim()),
-        'imageUrl': '', // Optional placeholder
-        'farmerId': user.uid,
-      };
+      final productCollection = FirebaseFirestore.instance.collection(
+        'products',
+      );
 
-      await FirebaseFirestore.instance.collection('products').add(productData);
+      final query = await productCollection
+          .where('farmerId', isEqualTo: user.uid)
+          .where('category', isEqualTo: _selectedCategory)
+          .where('subcategory', isEqualTo: _selectedSubcategory)
+          .limit(1)
+          .get();
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("✅ Product added!")));
+      final price = double.parse(_priceController.text.trim());
+      final quantity = int.parse(_quantityController.text.trim());
+
+      if (query.docs.isNotEmpty) {
+        // ✅ RESTOCK existing product
+        final doc = query.docs.first;
+        final currentQty = doc['quantity'] ?? 0;
+
+        await productCollection.doc(doc.id).update({
+          'quantity': currentQty + quantity,
+          'price': price, // update price too
+        });
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("✅ Product restocked!")));
+      } else {
+        // 🆕 ADD new product
+        final productData = {
+          'name': _selectedSubcategory,
+          'category': _selectedCategory,
+          'subcategory': _selectedSubcategory,
+          'unit': unit,
+          'price': price,
+          'quantity': quantity,
+          'imageUrl': '',
+          'farmerId': user.uid,
+        };
+
+        await productCollection.add(productData);
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("✅ Product added!")));
+      }
 
       Navigator.pop(context);
     } catch (e) {

@@ -20,7 +20,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscureConfirmPassword = true;
 
   String _selectedRole = 'farmer';
-  final List<String> _roles = ['farmer', 'customer']; // Removed 'admin'
+  final List<String> _roles = ['farmer', 'customer'];
 
   void _register() async {
     final email = _emailController.text.trim();
@@ -29,6 +29,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final name = _nameController.text.trim();
     final phone = _phoneController.text.trim();
     final role = _selectedRole;
+
+    final nameRegex = RegExp(r'^[a-zA-Z\s]+$');
+    final phoneRegex = RegExp(r'^\d+$');
+
+    if (!nameRegex.hasMatch(name)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("❌ Name must contain only letters")),
+      );
+      return;
+    }
+
+    if (!phoneRegex.hasMatch(phone)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("❌ Phone must contain only numbers")),
+      );
+      return;
+    }
 
     if (password != confirmPassword) {
       ScaffoldMessenger.of(
@@ -49,7 +66,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("✅ Registration successful")),
       );
-      Navigator.pop(context); // Go back to login screen
+      Navigator.pop(context); // Redirect to login screen
     } else {
       ScaffoldMessenger.of(
         context,
@@ -62,6 +79,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Register"),
+        automaticallyImplyLeading: true,
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -73,6 +91,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       ),
       body: Container(
+        padding: const EdgeInsets.all(24),
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [Color(0xFFF1F8E9), Colors.white],
@@ -80,7 +99,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             end: Alignment.bottomCenter,
           ),
         ),
-        padding: const EdgeInsets.all(24),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -154,11 +172,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ? Icons.visibility
                           : Icons.visibility_off,
                     ),
-                    onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
-                    },
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -181,11 +196,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ? Icons.visibility
                           : Icons.visibility_off,
                     ),
-                    onPressed: () {
-                      setState(() {
-                        _obscureConfirmPassword = !_obscureConfirmPassword;
-                      });
-                    },
+                    onPressed: () => setState(
+                      () => _obscureConfirmPassword = !_obscureConfirmPassword,
+                    ),
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -212,9 +225,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     )
                     .toList(),
-                onChanged: (value) {
-                  setState(() => _selectedRole = value!);
-                },
+                onChanged: (value) => setState(() => _selectedRole = value!),
               ),
               const SizedBox(height: 24),
 
