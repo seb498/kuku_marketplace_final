@@ -18,6 +18,11 @@ class AdminDashboard extends StatelessWidget {
     }
   }
 
+  Future<void> _logout(BuildContext context) async {
+    await FirebaseAuth.instance.signOut();
+    Navigator.pushReplacementNamed(context, '/');
+  }
+
   Future<double> _getTotalAdminFees() async {
     final snapshot = await FirebaseFirestore.instance
         .collection('orders')
@@ -40,13 +45,20 @@ class AdminDashboard extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Admin Dashboard'),
         backgroundColor: Colors.green.shade700,
+        automaticallyImplyLeading: false, // ✅ No back button
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: "Logout",
+            onPressed: () => _logout(context),
+          ),
+        ],
       ),
       body: Container(
         color: Colors.green.shade50,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            /// ✅ Admin Earnings Summary
             FutureBuilder<double>(
               future: _getTotalAdminFees(),
               builder: (context, snapshot) {
@@ -71,10 +83,7 @@ class AdminDashboard extends StatelessWidget {
                 );
               },
             ),
-
             const SizedBox(height: 20),
-
-            /// 👥 Users
             const Text(
               '👥 All Users',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -131,7 +140,6 @@ class AdminDashboard extends StatelessWidget {
                 );
               },
             ),
-
             const SizedBox(height: 20),
             const Text(
               '📦 All Products',
@@ -183,7 +191,6 @@ class AdminDashboard extends StatelessWidget {
                 );
               },
             ),
-
             const SizedBox(height: 20),
             const Text(
               '🧾 All Orders',
@@ -215,10 +222,12 @@ class AdminDashboard extends StatelessWidget {
                     final customerId = data['customerId'] ?? 'N/A';
                     final qty = data['quantity']?.toString() ?? 'N/A';
                     final total = data['total']?.toString() ?? 'N/A';
-                    final fee = data['adminFee']?.toStringAsFixed(2) ?? '0.00';
-                    final timestamp = data['timestamp']?.toDate();
-                    final date = timestamp != null
-                        ? timestamp.toLocal().toString().split('.')[0]
+                    final fee =
+                        (data['adminFee'] as num?)?.toStringAsFixed(2) ??
+                        '0.00';
+                    final timestamp = data['timestamp'];
+                    final date = timestamp != null && timestamp is Timestamp
+                        ? timestamp.toDate().toLocal().toString().split('.')[0]
                         : 'N/A';
 
                     return Card(

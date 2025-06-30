@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../services/auth_service.dart';
 import 'register_screen.dart';
 import 'farmer_dashboard.dart';
 import 'customer_dashboard.dart';
 import 'admin_dashboard.dart';
-import 'profile_update_screen.dart'; // ✅ Make sure you import this!
+import 'profile_update_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,7 +20,9 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authService = AuthService();
+
   bool _isLoggingIn = false;
+  bool _obscurePassword = true;
 
   Future<void> _login() async {
     setState(() => _isLoggingIn = true);
@@ -50,11 +53,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
       Widget destination;
 
-      // ✅ Check if name or phone is missing
       if (name.isEmpty || phone.isEmpty) {
         destination = const ProfileUpdateScreen();
       } else {
-        // ✅ Otherwise go to role dashboard
         switch (role) {
           case 'farmer':
             destination = const FarmerDashboard();
@@ -83,6 +84,51 @@ class _LoginScreenState extends State<LoginScreen> {
     } finally {
       setState(() => _isLoggingIn = false);
     }
+  }
+
+  void _showForgotPasswordDialog() {
+    final TextEditingController emailController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Reset Password"),
+        content: TextField(
+          controller: emailController,
+          decoration: const InputDecoration(labelText: "Enter your email"),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              final email = emailController.text.trim();
+              if (email.isNotEmpty) {
+                try {
+                  await FirebaseAuth.instance.sendPasswordResetEmail(
+                    email: email,
+                  );
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("📧 Password reset email sent"),
+                    ),
+                  );
+                } catch (e) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Error: ${e.toString()}")),
+                  );
+                }
+              }
+            },
+            child: const Text("Send"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -123,7 +169,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: 30),
 
-            // Email
             TextField(
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
@@ -139,23 +184,44 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Password
             TextField(
               controller: _passwordController,
-              obscureText: true,
+              obscureText: _obscurePassword,
               decoration: InputDecoration(
                 labelText: "Password",
                 filled: true,
                 fillColor: Colors.white,
                 prefixIcon: const Icon(Icons.lock),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscurePassword = !_obscurePassword;
+                    });
+                  },
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 8),
 
-            // Login Button
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: _showForgotPasswordDialog,
+                child: const Text(
+                  "Forgot Password?",
+                  style: TextStyle(color: Color(0xFF33691E)),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
             _isLoggingIn
                 ? const Center(child: CircularProgressIndicator())
                 : ElevatedButton(
@@ -172,9 +238,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: TextStyle(fontSize: 18, color: Colors.white),
                     ),
                   ),
+
             const SizedBox(height: 16),
 
-            // Register link
             Center(
               child: TextButton(
                 onPressed: () {

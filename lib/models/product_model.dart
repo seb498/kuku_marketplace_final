@@ -1,12 +1,16 @@
 class Product {
   final String id;
   final String name;
-  final String description; // Used as "category"
+  final String description;
   final double price;
   final int quantity;
   final String imageUrl;
   final String farmerId;
   final String? farmerEmail;
+  final String productType;
+  final String category;
+  final String subcategory;
+  final String unit;
 
   Product({
     required this.id,
@@ -17,6 +21,10 @@ class Product {
     required this.imageUrl,
     required this.farmerId,
     this.farmerEmail,
+    required this.productType,
+    required this.category,
+    required this.subcategory,
+    required this.unit,
   });
 
   Map<String, dynamic> toMap() {
@@ -28,6 +36,10 @@ class Product {
       'imageUrl': imageUrl,
       'farmerId': farmerId,
       if (farmerEmail != null) 'farmerEmail': farmerEmail,
+      'productType': productType,
+      'category': category,
+      'subcategory': subcategory,
+      'unit': unit,
     };
   }
 
@@ -41,6 +53,10 @@ class Product {
       imageUrl: map['imageUrl'] ?? '',
       farmerId: map['farmerId'] ?? '',
       farmerEmail: map['farmerEmail'] as String?,
+      productType: map['productType'] ?? '',
+      category: map['category'] ?? '',
+      subcategory: map['subcategory'] ?? '',
+      unit: map['unit'] ?? '',
     );
   }
 
@@ -64,6 +80,10 @@ class Product {
     String? imageUrl,
     String? farmerId,
     String? farmerEmail,
+    String? productType,
+    String? category,
+    String? subcategory,
+    String? unit,
   }) {
     return Product(
       id: id ?? this.id,
@@ -74,6 +94,10 @@ class Product {
       imageUrl: imageUrl ?? this.imageUrl,
       farmerId: farmerId ?? this.farmerId,
       farmerEmail: farmerEmail ?? this.farmerEmail,
+      productType: productType ?? this.productType,
+      category: category ?? this.category,
+      subcategory: subcategory ?? this.subcategory,
+      unit: unit ?? this.unit,
     );
   }
 }

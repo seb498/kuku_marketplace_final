@@ -33,7 +33,7 @@ class MyOrdersScreen extends StatelessWidget {
 
     final orderId = order.id;
     final data = order.data() as Map<String, dynamic>;
-    final total = (data['total'] as num).toDouble();
+    final total = (data['total'] as num?)?.toDouble() ?? 0.0;
 
     final commission = total * 0.10;
     final farmerAmount = total * 0.90;
@@ -111,9 +111,7 @@ class MyOrdersScreen extends StatelessWidget {
           actions: [
             TextButton(
               child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              onPressed: () => Navigator.of(context).pop(),
             ),
             ElevatedButton(
               child: const Text('Submit'),
@@ -180,7 +178,6 @@ class MyOrdersScreen extends StatelessWidget {
         appBar: AppBar(
           title: const Text("My Orders"),
           backgroundColor: Colors.green,
-          automaticallyImplyLeading: false,
         ),
         body: const Center(
           child: Text("You must be logged in to view orders."),
@@ -192,7 +189,6 @@ class MyOrdersScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text("My Orders"),
         backgroundColor: Colors.green,
-        automaticallyImplyLeading: false,
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -202,12 +198,7 @@ class MyOrdersScreen extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                "Error: ${snapshot.error}",
-                style: const TextStyle(color: Colors.red),
-              ),
-            );
+            return Center(child: Text("Error: ${snapshot.error}"));
           }
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -227,73 +218,26 @@ class MyOrdersScreen extends StatelessWidget {
               final order = orders[index];
               final data = order.data() as Map<String, dynamic>;
 
-              final productImage =
-                  (data['productImage'] as String?)?.isNotEmpty == true
-                  ? data['productImage'] as String
-                  : '';
-              final productName =
-                  data['productName'] as String? ?? 'Unknown Product';
-              final quantity = data['quantity']?.toString() ?? '0';
-              final total = data['total']?.toString() ?? '0';
-              final isPaid = data['isPaid'] as bool? ?? false;
-              final isRated = data['isRated'] as bool? ?? false;
-
-              final timestamp = data['timestamp']?.toDate();
+              final productName = data['productName'] ?? 'Product';
+              final image = data['productImage'] ?? '';
+              final quantity = data['quantity'] ?? 0;
+              final total = data['total'] ?? 0.0;
+              final isPaid = data['isPaid'] ?? false;
+              final isRated = data['isRated'] ?? false;
+              final unit = data['unit'] ?? 'Unit';
+              final timestamp = (data['timestamp'] as Timestamp?)?.toDate();
               final formattedDate = timestamp != null
-                  ? "${timestamp.toLocal()}".split('.')[0]
-                  : "Unknown Date";
-
-              Widget leadingWidget;
-
-              if (productImage.isNotEmpty) {
-                leadingWidget = ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    productImage,
-                    width: 60,
-                    height: 60,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) {
-                      return CircleAvatar(
-                        radius: 30,
-                        backgroundColor: Colors.green.shade300,
-                        child: Text(
-                          productName.isNotEmpty
-                              ? productName[0].toUpperCase()
-                              : '?',
-                          style: const TextStyle(
-                            fontSize: 28,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              } else {
-                leadingWidget = CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.green.shade300,
-                  child: Text(
-                    productName.isNotEmpty ? productName[0].toUpperCase() : '?',
-                    style: const TextStyle(
-                      fontSize: 28,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                );
-              }
+                  ? "${timestamp.day}/${timestamp.month}/${timestamp.year} ${timestamp.hour}:${timestamp.minute}"
+                  : 'Unknown Date';
 
               return Card(
+                elevation: 3,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                elevation: 3,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                    vertical: 8,
+                    vertical: 10,
                     horizontal: 12,
                   ),
                   child: Column(
@@ -301,45 +245,66 @@ class MyOrdersScreen extends StatelessWidget {
                     children: [
                       ListTile(
                         contentPadding: EdgeInsets.zero,
-                        leading: leadingWidget,
+                        leading: image != ''
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  image,
+                                  width: 60,
+                                  height: 60,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => CircleAvatar(
+                                    radius: 30,
+                                    backgroundColor: Colors.green.shade300,
+                                    child: Text(
+                                      productName[0].toUpperCase(),
+                                      style: const TextStyle(
+                                        fontSize: 24,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : CircleAvatar(
+                                radius: 30,
+                                backgroundColor: Colors.green.shade300,
+                                child: Text(
+                                  productName[0].toUpperCase(),
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
                         title: Text(
                           productName,
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text("Qty: $quantity  •  Total: Ksh $total"),
-                            Text("Date: $formattedDate"),
-                          ],
-                        ),
+                        subtitle: Text("Qty: $quantity $unit • Ksh $total"),
                         trailing: Chip(
                           label: Text(
                             isPaid ? "Paid" : "Unpaid",
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: const TextStyle(color: Colors.white),
                           ),
-                          backgroundColor: isPaid ? Colors.green : Colors.red,
+                          backgroundColor: isPaid
+                              ? Colors.green
+                              : Colors.redAccent,
                         ),
                       ),
-
+                      Padding(
+                        padding: const EdgeInsets.only(left: 12),
+                        child: Text("Date: $formattedDate"),
+                      ),
+                      const SizedBox(height: 6),
                       if (!isPaid)
                         Align(
                           alignment: Alignment.centerRight,
                           child: ElevatedButton(
                             onPressed: () => markOrderAsPaid(order, context),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green[700],
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                              ),
-                            ),
                             child: const Text("Pay Now"),
                           ),
                         ),
-
                       if (isPaid && !isRated)
                         Align(
                           alignment: Alignment.centerRight,
@@ -347,18 +312,14 @@ class MyOrdersScreen extends StatelessWidget {
                             onPressed: () =>
                                 showRatingDialog(context, order, data),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange[700],
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                              ),
+                              backgroundColor: Colors.orange[800],
                             ),
                             child: const Text("Rate Farmer"),
                           ),
                         ),
-
                       if (isPaid && isRated)
                         Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
+                          padding: const EdgeInsets.only(top: 6, left: 12),
                           child: Text(
                             "Thank you for rating!",
                             style: TextStyle(

@@ -2,12 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../models/product_model.dart';
-
 class AddProductScreen extends StatefulWidget {
-  final Product? product;
-
-  const AddProductScreen({super.key, this.product});
+  const AddProductScreen({super.key});
 
   @override
   State<AddProductScreen> createState() => _AddProductScreenState();
@@ -17,34 +13,27 @@ class _AddProductScreenState extends State<AddProductScreen> {
   final _formKey = GlobalKey<FormState>();
   final _priceController = TextEditingController();
   final _quantityController = TextEditingController();
+
   String _selectedCategory = 'Eggs';
+  String _selectedSubcategory = '';
   bool _isLoading = false;
 
-  final List<String> _categories = ['Eggs', 'Meat', 'Live Birds'];
-
-  final Map<String, String> categoryImages = {
-    'Eggs':
-        'https://cdn.pixabay.com/photo/2015/04/08/13/13/eggs-712760_960_720.jpg',
-    'Meat':
-        'https://cdn.pixabay.com/photo/2020/01/03/21/45/chicken-meat-4738787_960_720.jpg',
-    'Live Birds':
-        'https://cdn.pixabay.com/photo/2014/12/10/20/58/chickens-563287_960_720.jpg',
+  final Map<String, List<String>> _subcategories = {
+    'Eggs': ['Improved Kienyeji', 'Kienyeji', 'Grade 1'],
+    'Live Chicken': ['Broilers', 'Layers', 'Improved Kienyeji', 'Cockerels'],
+    'Meat': ['Broiler Meat', 'Kienyeji Meat', 'Grade 1 Chicken Meat'],
   };
 
-  final Map<String, String> categoryNames = {
-    'Eggs': 'Fresh Eggs',
-    'Meat': 'Local Chicken Meat',
-    'Live Birds': 'Healthy Live Chicken',
-  };
+  String get unit {
+    if (_selectedCategory == 'Eggs') return 'Crate';
+    if (_selectedCategory == 'Meat') return 'Kg';
+    return 'Bird';
+  }
 
   @override
   void initState() {
     super.initState();
-    if (widget.product != null) {
-      _priceController.text = widget.product!.price.toString();
-      _quantityController.text = widget.product!.quantity.toString();
-      _selectedCategory = widget.product!.description;
-    }
+    _selectedSubcategory = _subcategories[_selectedCategory]!.first;
   }
 
   Future<void> _submit() async {
@@ -62,44 +51,21 @@ class _AddProductScreenState extends State<AddProductScreen> {
       if (user == null) throw Exception("User not logged in");
 
       final productData = {
-        'name': categoryNames[_selectedCategory]!,
-        'description': _selectedCategory,
+        'name': _selectedSubcategory,
+        'category': _selectedCategory,
+        'subcategory': _selectedSubcategory,
+        'unit': unit,
         'price': double.parse(_priceController.text.trim()),
         'quantity': int.parse(_quantityController.text.trim()),
-        'imageUrl': categoryImages[_selectedCategory]!,
+        'imageUrl': '', // Optional placeholder
         'farmerId': user.uid,
       };
 
-      final productsRef = FirebaseFirestore.instance.collection('products');
+      await FirebaseFirestore.instance.collection('products').add(productData);
 
-      // ⚡ Check if product exists
-      final existing = await productsRef
-          .where('farmerId', isEqualTo: user.uid)
-          .where('description', isEqualTo: _selectedCategory)
-          .limit(1)
-          .get();
-
-      if (existing.docs.isNotEmpty) {
-        final doc = existing.docs.first;
-
-        final existingData = doc.data();
-        final newQty =
-            (existingData['quantity'] ?? 0) +
-            int.parse(_quantityController.text.trim());
-        final newPrice = double.parse(_priceController.text.trim());
-
-        await doc.reference.update({'quantity': newQty, 'price': newPrice});
-
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("✅ Stock updated!")));
-      } else {
-        await productsRef.add(productData);
-
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("✅ Product added!")));
-      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("✅ Product added!")));
 
       Navigator.pop(context);
     } catch (e) {
@@ -113,66 +79,80 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isEdit = widget.product != null;
-
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEdit ? "Edit Product" : "Add Product"),
+        title: const Text("Add Product"),
         backgroundColor: Colors.green.shade700,
       ),
       body: Container(
-        color: Colors.green.shade50,
         padding: const EdgeInsets.all(16.0),
+        color: Colors.green.shade50,
         child: Form(
           key: _formKey,
           child: ListView(
             children: [
               const Text(
-                "Product Details",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                "Select Category",
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: _selectedCategory,
-                items: _categories.map((cat) {
+                items: _subcategories.keys.map((cat) {
                   return DropdownMenuItem(value: cat, child: Text(cat));
                 }).toList(),
-                onChanged: (value) =>
-                    setState(() => _selectedCategory = value!),
-                decoration: const InputDecoration(
-                  labelText: 'Category',
-                  border: OutlineInputBorder(),
-                ),
+                onChanged: (val) {
+                  setState(() {
+                    _selectedCategory = val!;
+                    _selectedSubcategory = _subcategories[val]!.first;
+                  });
+                },
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
+              const Text(
+                "Select Subcategory",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              DropdownButtonFormField<String>(
+                value: _selectedSubcategory,
+                items: _subcategories[_selectedCategory]!
+                    .map(
+                      (sub) => DropdownMenuItem(value: sub, child: Text(sub)),
+                    )
+                    .toList(),
+                onChanged: (val) => setState(() => _selectedSubcategory = val!),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                "Selling Unit: $unit",
+                style: const TextStyle(color: Colors.black54),
+              ),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _priceController,
-                decoration: const InputDecoration(
-                  labelText: "Price",
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.attach_money),
+                decoration: InputDecoration(
+                  labelText: "Price per $unit",
+                  border: const OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.number,
-                validator: (value) => value!.isEmpty ? "Required" : null,
+                validator: (val) => val!.isEmpty ? "Enter price" : null,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _quantityController,
-                decoration: const InputDecoration(
-                  labelText: "Quantity",
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.inventory),
+                decoration: InputDecoration(
+                  labelText: "Available Quantity ($unit)",
+                  border: const OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.number,
-                validator: (value) => value!.isEmpty ? "Required" : null,
+                validator: (val) => val!.isEmpty ? "Enter quantity" : null,
               ),
               const SizedBox(height: 24),
               _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : ElevatedButton.icon(
                       onPressed: _submit,
-                      icon: Icon(isEdit ? Icons.update : Icons.add),
-                      label: Text(isEdit ? "Update Product" : "Submit Product"),
+                      icon: const Icon(Icons.add),
+                      label: const Text("Submit Product"),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green.shade700,
                         padding: const EdgeInsets.symmetric(vertical: 14),

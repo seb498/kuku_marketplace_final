@@ -19,7 +19,7 @@ class CustomerDashboard extends StatefulWidget {
 class _CustomerDashboardState extends State<CustomerDashboard> {
   String _searchQuery = '';
   String _selectedCategory = 'All';
-  final List<String> _categories = ['All', 'Eggs', 'Meat', 'Live Birds'];
+  final List<String> _categories = ['All', 'Eggs', 'Meat', 'Live Chicken'];
 
   Stream<List<Product>> _getProducts() {
     return FirebaseFirestore.instance.collection('products').snapshots().map((
@@ -33,9 +33,8 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                 product.name.toLowerCase().contains(_searchQuery.toLowerCase());
             final matchesCategory =
                 _selectedCategory == 'All' ||
-                product.description.toLowerCase().contains(
-                  _selectedCategory.toLowerCase(),
-                );
+                product.productType.toLowerCase() ==
+                    _selectedCategory.toLowerCase();
             return matchesSearch && matchesCategory;
           })
           .toList();
@@ -114,7 +113,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
       backgroundColor: Colors.green[50],
       appBar: AppBar(
         backgroundColor: Colors.green[700],
-        automaticallyImplyLeading: false, // ✅ No back button!
+        automaticallyImplyLeading: false,
         title: const Text("🐓 Customer Dashboard"),
         actions: [
           IconButton(
@@ -240,8 +239,9 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                                           "Ksh ${product.price} • Qty: ${product.quantity}",
                                         ),
                                         Text(
-                                          "Category: ${product.description}",
+                                          "Category: ${product.productType} (${product.category})",
                                         ),
+                                        Text("Sold in ${product.unit}"),
                                         const SizedBox(height: 4),
                                         _buildRatingStars(avg, count),
                                       ],

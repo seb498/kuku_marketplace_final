@@ -11,19 +11,31 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _nameController = TextEditingController(); // ✅ New
-  final _phoneController = TextEditingController(); // ✅ New
+  final _confirmPasswordController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
   final AuthService _authService = AuthService();
 
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+
   String _selectedRole = 'farmer';
-  final List<String> _roles = ['farmer', 'customer', 'admin'];
+  final List<String> _roles = ['farmer', 'customer']; // Removed 'admin'
 
   void _register() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
-    final name = _nameController.text.trim(); // ✅
-    final phone = _phoneController.text.trim(); // ✅
+    final confirmPassword = _confirmPasswordController.text.trim();
+    final name = _nameController.text.trim();
+    final phone = _phoneController.text.trim();
     final role = _selectedRole;
+
+    if (password != confirmPassword) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("❌ Passwords do not match")));
+      return;
+    }
 
     final user = await _authService.register(
       email,
@@ -31,13 +43,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       role,
       name,
       phone,
-    ); // ✅
+    );
 
     if (user != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("✅ Registration successful")),
       );
-      Navigator.pop(context); // Back to login
+      Navigator.pop(context); // Go back to login screen
     } else {
       ScaffoldMessenger.of(
         context,
@@ -70,7 +82,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         padding: const EdgeInsets.all(24),
         child: SingleChildScrollView(
-          // ✅ wrap in scroll view for small screens
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -85,7 +96,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 30),
 
-              // ✅ Name
               TextField(
                 controller: _nameController,
                 decoration: InputDecoration(
@@ -100,7 +110,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 16),
 
-              // ✅ Phone
               TextField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
@@ -116,7 +125,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Email
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
@@ -132,15 +140,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Password
               TextField(
                 controller: _passwordController,
-                obscureText: true,
+                obscureText: _obscurePassword,
                 decoration: InputDecoration(
                   labelText: "Password",
                   filled: true,
                   fillColor: Colors.white,
                   prefixIcon: const Icon(Icons.lock),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility
+                          : Icons.visibility_off,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -148,7 +167,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Role Dropdown
+              TextField(
+                controller: _confirmPasswordController,
+                obscureText: _obscureConfirmPassword,
+                decoration: InputDecoration(
+                  labelText: "Confirm Password",
+                  filled: true,
+                  fillColor: Colors.white,
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureConfirmPassword
+                          ? Icons.visibility
+                          : Icons.visibility_off,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscureConfirmPassword = !_obscureConfirmPassword;
+                      });
+                    },
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
               DropdownButtonFormField<String>(
                 value: _selectedRole,
                 decoration: InputDecoration(
@@ -171,10 +216,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   setState(() => _selectedRole = value!);
                 },
               ),
-
               const SizedBox(height: 24),
 
-              // Register Button
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF558B2F),

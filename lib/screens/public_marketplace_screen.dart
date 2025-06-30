@@ -29,9 +29,8 @@ class _PublicMarketplaceScreenState extends State<PublicMarketplaceScreen> {
                 product.name.toLowerCase().contains(_searchQuery.toLowerCase());
             final matchesCategory =
                 _selectedCategory == 'All' ||
-                product.description.toLowerCase().contains(
-                  _selectedCategory.toLowerCase(),
-                );
+                product.productType.toLowerCase() ==
+                    _selectedCategory.toLowerCase();
             return matchesSearch && matchesCategory;
           })
           .toList();
@@ -44,6 +43,36 @@ class _PublicMarketplaceScreenState extends State<PublicMarketplaceScreen> {
         .doc(farmerId)
         .get();
     return doc.data()?['email'] ?? 'Unknown Farmer';
+  }
+
+  Widget _placeholderImage(String name) {
+    return Container(
+      width: 60,
+      height: 60,
+      decoration: BoxDecoration(
+        color: Colors.green.shade300,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : '?',
+        style: const TextStyle(fontSize: 24, color: Colors.white),
+      ),
+    );
+  }
+
+  Widget _buildProductImage(String imageUrl, String name) {
+    if (imageUrl.isEmpty) return _placeholderImage(name);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Image.network(
+        imageUrl,
+        width: 60,
+        height: 60,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _placeholderImage(name),
+      ),
+    );
   }
 
   @override
@@ -83,7 +112,6 @@ class _PublicMarketplaceScreenState extends State<PublicMarketplaceScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Search
             TextField(
               decoration: InputDecoration(
                 labelText: 'Search products...',
@@ -97,8 +125,6 @@ class _PublicMarketplaceScreenState extends State<PublicMarketplaceScreen> {
               onChanged: (value) => setState(() => _searchQuery = value),
             ),
             const SizedBox(height: 12),
-
-            // Category filter
             DropdownButtonFormField<String>(
               value: _selectedCategory,
               items: _categories
@@ -115,8 +141,6 @@ class _PublicMarketplaceScreenState extends State<PublicMarketplaceScreen> {
               ),
             ),
             const SizedBox(height: 16),
-
-            // Products
             Expanded(
               child: StreamBuilder<List<Product>>(
                 stream: _getProducts(),
@@ -149,56 +173,76 @@ class _PublicMarketplaceScreenState extends State<PublicMarketplaceScreen> {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: ListTile(
-                              contentPadding: const EdgeInsets.all(12),
-                              title: Text(
-                                product.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              subtitle: Padding(
-                                padding: const EdgeInsets.only(top: 4.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      "💲 Ksh ${product.price} • Qty: ${product.quantity}",
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildProductImage(
+                                    product.imageUrl,
+                                    product.name,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          product.name,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          "💲 Ksh ${product.price} per ${product.unit}",
+                                        ),
+                                        Text(
+                                          "📦 Available: ${product.quantity} ${product.unit}",
+                                        ),
+                                        Text(
+                                          "Type: ${product.productType} • ${product.category}",
+                                          style: const TextStyle(
+                                            fontStyle: FontStyle.italic,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        Text(
+                                          "👨‍🌾 Farmer: $farmerEmail",
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      "👨‍🌾 Farmer: $farmerEmail",
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w500,
+                                  ),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF558B2F),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
                                       ),
                                     ),
-                                  ],
-                                ),
-                              ),
-                              trailing: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF558B2F),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => const LoginScreen(),
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const LoginScreen(),
+                                        ),
+                                      );
+                                    },
+                                    child: const Text(
+                                      "Login\nTo Order",
+                                      textAlign: TextAlign.center,
                                     ),
-                                  );
-                                },
-                                child: const Text(
-                                  "Login\nTo Order",
-                                  textAlign: TextAlign.center,
-                                ),
+                                  ),
+                                ],
                               ),
                             ),
                           );

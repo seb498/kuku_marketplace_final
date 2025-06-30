@@ -86,6 +86,9 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         'productId': widget.product.id,
         'productName': widget.product.name,
         'productImage': widget.product.imageUrl,
+        'productType': widget.product.productType,
+        'category': widget.product.category,
+        'unit': widget.product.unit,
         'quantity': quantity,
         'price': widget.product.price,
         'total': totalAmount,
@@ -149,9 +152,17 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
               "Product: ${product.name}",
               style: const TextStyle(fontSize: 18),
             ),
+            Text(
+              "Type: ${product.productType}",
+              style: const TextStyle(fontSize: 16),
+            ),
+            Text(
+              "Category: ${product.category}",
+              style: const TextStyle(fontSize: 16),
+            ),
             const SizedBox(height: 5),
             Text(
-              "Price: Ksh ${product.price}",
+              "Price: Ksh ${product.price} per ${product.unit}",
               style: const TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 20),
@@ -159,7 +170,8 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
               controller: _quantityController,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
-                labelText: "Enter Quantity (Available: ${product.quantity})",
+                labelText:
+                    "Enter Quantity (Available: ${product.quantity} ${product.unit})",
                 border: const OutlineInputBorder(),
               ),
             ),

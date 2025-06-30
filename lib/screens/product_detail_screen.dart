@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../models/product_model.dart';
-import 'chat_screen.dart'; // ✅ Import the chat screen
+import 'chat_screen.dart';
 
 class ProductDetailScreen extends StatelessWidget {
   final Product product;
@@ -102,12 +102,15 @@ class ProductDetailScreen extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'Ksh ${product.price.toStringAsFixed(2)}',
+                  'Ksh ${product.price.toStringAsFixed(2)} per ${product.unit}',
                   style: const TextStyle(fontSize: 18, color: Colors.black54),
                 ),
                 const SizedBox(height: 8),
-                Text("Category: ${product.description}"),
-                Text("Available Quantity: ${product.quantity}"),
+                Text("Product Type: ${product.productType}"),
+                Text("Category: ${product.category}"),
+                if (product.subcategory.isNotEmpty)
+                  Text("Subcategory: ${product.subcategory}"),
+                Text("Available Quantity: ${product.quantity} ${product.unit}"),
                 const SizedBox(height: 8),
                 _buildRatingStars(avgRating),
                 Text(

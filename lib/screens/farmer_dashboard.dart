@@ -78,7 +78,6 @@ class _FarmerDashboardState extends State<FarmerDashboard> {
     return {'average': avg, 'count': snapshot.docs.length};
   }
 
-  /// ✅ NEW: Get Total Earnings & Orders Count
   Future<Map<String, dynamic>> _getMyEarnings() async {
     final snapshot = await FirebaseFirestore.instance
         .collection('orders')
@@ -146,213 +145,189 @@ class _FarmerDashboardState extends State<FarmerDashboard> {
         },
       ),
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              /// ⭐ Average Rating
-              FutureBuilder<Map<String, dynamic>>(
-                future: _getMyAverageRating(),
-                builder: (context, snapshot) {
-                  final avg = snapshot.data?['average'] ?? 0.0;
-                  final count = snapshot.data?['count'] ?? 0;
-                  return Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ⭐ Rating
+            FutureBuilder<Map<String, dynamic>>(
+              future: _getMyAverageRating(),
+              builder: (context, snapshot) {
+                final avg = snapshot.data?['average'] ?? 0.0;
+                final count = snapshot.data?['count'] ?? 0;
+                return Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.star, color: Colors.orange),
+                    title: const Text("Your Average Rating"),
+                    subtitle: Row(
+                      children: [
+                        _buildStars(avg),
+                        const SizedBox(width: 8),
+                        Text("(${avg.toStringAsFixed(1)}/5, $count reviews)"),
+                      ],
                     ),
-                    elevation: 3,
-                    child: ListTile(
-                      leading: const Icon(Icons.star, color: Colors.orange),
-                      title: const Text(
-                        "Your Average Rating",
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Row(
-                        children: [
-                          _buildStars(avg),
-                          const SizedBox(width: 8),
-                          Text("(${avg.toStringAsFixed(1)}/5, $count reviews)"),
-                        ],
-                      ),
+                  ),
+                );
+              },
+            ),
+
+            const SizedBox(height: 10),
+
+            // 💰 Earnings
+            FutureBuilder<Map<String, dynamic>>(
+              future: _getMyEarnings(),
+              builder: (context, snapshot) {
+                final total = snapshot.data?['totalEarnings'] ?? 0.0;
+                final orders = snapshot.data?['totalOrders'] ?? 0;
+                return Card(
+                  child: ListTile(
+                    leading: const Icon(
+                      Icons.monetization_on,
+                      color: Colors.green,
                     ),
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-
-              /// ✅ NEW: Earnings Summary
-              FutureBuilder<Map<String, dynamic>>(
-                future: _getMyEarnings(),
-                builder: (context, snapshot) {
-                  final total = snapshot.data?['totalEarnings'] ?? 0.0;
-                  final orders = snapshot.data?['totalOrders'] ?? 0;
-                  return Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                    title: const Text("Your Total Earnings"),
+                    subtitle: Text(
+                      "Ksh ${total.toStringAsFixed(2)} from $orders orders",
                     ),
-                    elevation: 3,
-                    child: ListTile(
-                      leading: const Icon(
-                        Icons.monetization_on,
-                        color: Colors.green,
-                      ),
-                      title: const Text(
-                        "Your Total Earnings",
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Text(
-                        "Ksh ${total.toStringAsFixed(2)} from $orders orders",
-                      ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
+                  ),
+                );
+              },
+            ),
 
-              /// 📦 My Products
-              const Text(
-                '📦 My Products',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 250,
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: _getMyProducts(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                      return const Center(
-                        child: Text('No products listed yet.'),
-                      );
-                    }
-                    final products = snapshot.data!.docs;
+            const SizedBox(height: 10),
 
-                    return ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: products.length,
-                      itemBuilder: (context, index) {
-                        final data =
-                            products[index].data() as Map<String, dynamic>;
-                        final name = data['name'] ?? 'N/A';
-                        final price = data['price'] ?? 'N/A';
-                        final qty = data['quantity'] ?? 0;
-
-                        return Container(
-                          width: 200,
-                          margin: const EdgeInsets.symmetric(horizontal: 8),
-                          child: Card(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 4,
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    name,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text('Price: Ksh $price'),
-                                  Text('Quantity: $qty'),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              /// 💬 Inquiries
-              const Text(
-                '💬 Customer Inquiries',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              StreamBuilder<List<Map<String, dynamic>>>(
-                stream: _getInquiries(farmerId),
+            // 📦 Products
+            const Text(
+              '📦 My Products',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 250,
+              child: StreamBuilder<QuerySnapshot>(
+                stream: _getMyProducts(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
-                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return const Center(child: Text('No messages yet.'));
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return const Center(child: Text('No products listed yet.'));
                   }
-
-                  final conversations = snapshot.data!;
+                  final products = snapshot.data!.docs;
                   return ListView.builder(
-                    physics: const NeverScrollableScrollPhysics(),
-                    shrinkWrap: true,
-                    itemCount: conversations.length,
+                    scrollDirection: Axis.horizontal,
+                    itemCount: products.length,
                     itemBuilder: (context, index) {
-                      final convo = conversations[index];
-                      final lastMessage = convo['lastMessage'] ?? '';
-                      final timestamp = convo['timestamp'];
-                      final customerId = convo['customerId'] ?? '';
+                      final data =
+                          products[index].data() as Map<String, dynamic>;
+                      final name = data['name'] ?? 'N/A';
+                      final price = data['price'] ?? 'N/A';
+                      final qty = data['quantity'] ?? 0;
 
-                      return FutureBuilder<String>(
-                        future: _getCustomerName(customerId),
-                        builder: (context, nameSnapshot) {
-                          final customerName =
-                              nameSnapshot.data ?? 'Loading...';
-
-                          return Card(
-                            margin: const EdgeInsets.symmetric(vertical: 6),
-                            child: ListTile(
-                              leading: const CircleAvatar(
-                                backgroundColor: Colors.green,
-                                child: Icon(Icons.person, color: Colors.white),
-                              ),
-                              title: Text(customerName),
-                              subtitle: Text(
-                                lastMessage,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              trailing: timestamp is Timestamp
-                                  ? Text(
-                                      timestamp
-                                          .toDate()
-                                          .toLocal()
-                                          .toString()
-                                          .split('.')[0],
-                                      style: const TextStyle(fontSize: 10),
-                                    )
-                                  : null,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => ChatScreen(
-                                      currentUserId: farmerId,
-                                      otherUserId: customerId,
-                                      otherUserName: customerName,
-                                    ),
+                      return Container(
+                        width: 200,
+                        margin: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                );
-                              },
+                                ),
+                                Text('Price: Ksh $price'),
+                                Text('Qty: $qty'),
+                              ],
                             ),
-                          );
-                        },
+                          ),
+                        ),
                       );
                     },
                   );
                 },
               ),
-            ],
-          ),
+            ),
+
+            const SizedBox(height: 10),
+
+            // 💬 Inquiries
+            const Text(
+              '💬 Customer Inquiries',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _getInquiries(farmerId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Text('No messages yet.');
+                }
+
+                final conversations = snapshot.data!;
+                return ListView.builder(
+                  physics: const NeverScrollableScrollPhysics(),
+                  shrinkWrap: true,
+                  itemCount: conversations.length,
+                  itemBuilder: (context, index) {
+                    final convo = conversations[index];
+                    final lastMessage = convo['lastMessage'] ?? '';
+                    final timestamp = convo['timestamp'];
+                    final customerId = convo['customerId'] ?? '';
+
+                    return FutureBuilder<String>(
+                      future: _getCustomerName(customerId),
+                      builder: (context, nameSnapshot) {
+                        final customerName = nameSnapshot.data ?? 'Loading...';
+
+                        return Card(
+                          child: ListTile(
+                            leading: const CircleAvatar(
+                              backgroundColor: Colors.green,
+                              child: Icon(Icons.person, color: Colors.white),
+                            ),
+                            title: Text(customerName),
+                            subtitle: Text(
+                              lastMessage,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: timestamp is Timestamp
+                                ? Text(
+                                    timestamp
+                                        .toDate()
+                                        .toLocal()
+                                        .toString()
+                                        .split('.')[0],
+                                    style: const TextStyle(fontSize: 10),
+                                  )
+                                : null,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ChatScreen(
+                                    currentUserId: farmerId,
+                                    otherUserId: customerId,
+                                    otherUserName: customerName,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
