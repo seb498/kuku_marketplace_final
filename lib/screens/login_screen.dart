@@ -6,6 +6,7 @@ import 'register_screen.dart';
 import 'farmer_dashboard.dart';
 import 'customer_dashboard.dart';
 import 'admin_dashboard.dart';
+import 'profile_update_screen.dart'; // ✅ Make sure you import this!
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -42,18 +43,28 @@ class _LoginScreenState extends State<LoginScreen> {
           .doc(user.uid)
           .get();
 
-      final role = doc.data()?['role'] as String? ?? 'customer';
+      final data = doc.data();
+      final role = data?['role'] as String? ?? 'customer';
+      final name = data?['name'] as String? ?? '';
+      final phone = data?['phone'] as String? ?? '';
 
       Widget destination;
-      switch (role) {
-        case 'farmer':
-          destination = const FarmerDashboard();
-          break;
-        case 'admin':
-          destination = const AdminDashboard();
-          break;
-        default:
-          destination = const CustomerDashboard();
+
+      // ✅ Check if name or phone is missing
+      if (name.isEmpty || phone.isEmpty) {
+        destination = const ProfileUpdateScreen();
+      } else {
+        // ✅ Otherwise go to role dashboard
+        switch (role) {
+          case 'farmer':
+            destination = const FarmerDashboard();
+            break;
+          case 'admin':
+            destination = const AdminDashboard();
+            break;
+          default:
+            destination = const CustomerDashboard();
+        }
       }
 
       ScaffoldMessenger.of(
@@ -111,6 +122,8 @@ class _LoginScreenState extends State<LoginScreen> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 30),
+
+            // Email
             TextField(
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
@@ -125,6 +138,8 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
             const SizedBox(height: 16),
+
+            // Password
             TextField(
               controller: _passwordController,
               obscureText: true,
@@ -139,11 +154,13 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
             const SizedBox(height: 24),
+
+            // Login Button
             _isLoggingIn
                 ? const Center(child: CircularProgressIndicator())
                 : ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF558B2F),
+                      backgroundColor: const Color(0xFF558B2F),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -156,6 +173,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
             const SizedBox(height: 16),
+
+            // Register link
             Center(
               child: TextButton(
                 onPressed: () {

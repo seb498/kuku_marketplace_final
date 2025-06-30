@@ -64,12 +64,10 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           .collection('products')
           .doc(widget.product.id);
 
-      // 🔍 Step 1: Reduce stock
+      // ✅ Step 1: Atomically reduce stock
       await firestore.runTransaction((transaction) async {
         final snapshot = await transaction.get(productRef);
-
         final currentStock = snapshot.get('quantity');
-        print("📦 Current stock: $currentStock | Ordering: $quantity");
 
         if (currentStock < quantity) {
           throw Exception("Not enough stock available.");
@@ -78,22 +76,27 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         transaction.update(productRef, {'quantity': currentStock - quantity});
       });
 
-      // 🔍 Step 2: Save order to Firestore
+      // ✅ Step 2: Calculate splits
+      final totalAmount = quantity * widget.product.price;
+      final adminFee = totalAmount * 0.10;
+      final farmerAmount = totalAmount - adminFee;
+
+      // ✅ Step 3: Save order
       final orderData = {
         'productId': widget.product.id,
         'productName': widget.product.name,
         'productImage': widget.product.imageUrl,
         'quantity': quantity,
         'price': widget.product.price,
-        'total': quantity * widget.product.price,
+        'total': totalAmount,
+        'adminFee': adminFee,
+        'farmerAmount': farmerAmount,
         'customerId': user.uid,
         'farmerId': widget.product.farmerId,
         'timestamp': FieldValue.serverTimestamp(),
         'isPaid': false,
         'isRated': false,
       };
-
-      print("📝 Saving order: $orderData");
 
       await firestore.collection('orders').add(orderData);
 
@@ -104,7 +107,6 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
       Navigator.pop(context);
     } catch (e) {
       print("❌ Error placing order: $e");
-
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("❌ Failed to place order: $e")));

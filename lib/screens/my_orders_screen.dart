@@ -9,6 +9,28 @@ class MyOrdersScreen extends StatelessWidget {
     DocumentSnapshot order,
     BuildContext context,
   ) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Confirm Payment"),
+        content: const Text(
+          "Are you sure you want to mark this order as paid?",
+        ),
+        actions: [
+          TextButton(
+            child: const Text("Cancel"),
+            onPressed: () => Navigator.pop(context, false),
+          ),
+          ElevatedButton(
+            child: const Text("Yes, Pay"),
+            onPressed: () => Navigator.pop(context, true),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
     final orderId = order.id;
     final data = order.data() as Map<String, dynamic>;
     final total = (data['total'] as num).toDouble();
@@ -53,7 +75,6 @@ class MyOrdersScreen extends StatelessWidget {
             children: [
               Text("Order: ${data['productName'] ?? 'Product'}"),
               const SizedBox(height: 10),
-              // Star rating selector
               StatefulBuilder(
                 builder: (context, setState) {
                   return Row(
@@ -121,14 +142,12 @@ class MyOrdersScreen extends StatelessWidget {
                 };
 
                 try {
-                  // Save rating in subcollection
                   await FirebaseFirestore.instance
                       .collection('ratings')
                       .doc(farmerId)
                       .collection('reviews')
                       .add(reviewData);
 
-                  // Mark order as rated
                   await FirebaseFirestore.instance
                       .collection('orders')
                       .doc(order.id)
@@ -161,6 +180,7 @@ class MyOrdersScreen extends StatelessWidget {
         appBar: AppBar(
           title: const Text("My Orders"),
           backgroundColor: Colors.green,
+          automaticallyImplyLeading: false,
         ),
         body: const Center(
           child: Text("You must be logged in to view orders."),
@@ -172,6 +192,7 @@ class MyOrdersScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text("My Orders"),
         backgroundColor: Colors.green,
+        automaticallyImplyLeading: false,
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -216,6 +237,11 @@ class MyOrdersScreen extends StatelessWidget {
               final total = data['total']?.toString() ?? '0';
               final isPaid = data['isPaid'] as bool? ?? false;
               final isRated = data['isRated'] as bool? ?? false;
+
+              final timestamp = data['timestamp']?.toDate();
+              final formattedDate = timestamp != null
+                  ? "${timestamp.toLocal()}".split('.')[0]
+                  : "Unknown Date";
 
               Widget leadingWidget;
 
@@ -280,29 +306,25 @@ class MyOrdersScreen extends StatelessWidget {
                           productName,
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        subtitle: Text("Qty: $quantity  •  Total: Ksh $total"),
-                        trailing: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isPaid ? Colors.green[100] : Colors.red[100],
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text("Qty: $quantity  •  Total: Ksh $total"),
+                            Text("Date: $formattedDate"),
+                          ],
+                        ),
+                        trailing: Chip(
+                          label: Text(
                             isPaid ? "Paid" : "Unpaid",
-                            style: TextStyle(
-                              color: isPaid
-                                  ? Colors.green[800]
-                                  : Colors.red[800],
+                            style: const TextStyle(
+                              color: Colors.white,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
+                          backgroundColor: isPaid ? Colors.green : Colors.red,
                         ),
                       ),
 
-                      // Pay Now button if unpaid
                       if (!isPaid)
                         Align(
                           alignment: Alignment.centerRight,
@@ -318,7 +340,6 @@ class MyOrdersScreen extends StatelessWidget {
                           ),
                         ),
 
-                      // Rate button if paid but not rated
                       if (isPaid && !isRated)
                         Align(
                           alignment: Alignment.centerRight,
@@ -335,7 +356,6 @@ class MyOrdersScreen extends StatelessWidget {
                           ),
                         ),
 
-                      // Thank you message if rated
                       if (isPaid && isRated)
                         Padding(
                           padding: const EdgeInsets.only(top: 8.0),

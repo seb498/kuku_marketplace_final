@@ -2,254 +2,357 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../models/product_model.dart';
+import 'chat_screen.dart';
 import 'add_product_screen.dart';
-import 'logout_screen.dart';
 
 class FarmerDashboard extends StatefulWidget {
-  const FarmerDashboard({super.key});
+  const FarmerDashboard({Key? key}) : super(key: key);
 
   @override
   State<FarmerDashboard> createState() => _FarmerDashboardState();
 }
 
 class _FarmerDashboardState extends State<FarmerDashboard> {
-  final currentUser = FirebaseAuth.instance.currentUser;
+  final User? currentUser = FirebaseAuth.instance.currentUser;
 
-  String _searchQuery = '';
-  String _selectedCategory = 'All';
-
-  final List<String> _categories = ['All', 'Eggs', 'Meat', 'Live Birds'];
-
-  void _deleteProduct(String productId) async {
-    await FirebaseFirestore.instance
+  Stream<QuerySnapshot> _getMyProducts() {
+    return FirebaseFirestore.instance
         .collection('products')
-        .doc(productId)
-        .delete();
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("Product deleted")));
+        .where('farmerId', isEqualTo: currentUser?.uid ?? '')
+        .snapshots();
   }
 
-  Stream<List<Product>> _getFilteredProducts() {
-    final baseQuery = FirebaseFirestore.instance
-        .collection('products')
-        .where('farmerId', isEqualTo: currentUser!.uid);
-
-    return baseQuery.snapshots().map((snapshot) {
-      return snapshot.docs
-          .map((doc) {
+  Stream<List<Map<String, dynamic>>> _getInquiries(String farmerId) {
+    return FirebaseFirestore.instance
+        .collection('messages')
+        .where('receiverId', isEqualTo: farmerId)
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .map((snapshot) {
+          final Map<String, Map<String, dynamic>> latestMessages = {};
+          for (var doc in snapshot.docs) {
             final data = doc.data();
-            return Product.fromMap(doc.id, data);
-          })
-          .whereType<Product>()
-          .where((product) {
-            final matchesSearch =
-                _searchQuery.isEmpty ||
-                product.name.toLowerCase().contains(_searchQuery.toLowerCase());
-            final matchesCategory =
-                _selectedCategory == 'All' ||
-                product.description.toLowerCase() ==
-                    _selectedCategory.toLowerCase();
-            return matchesSearch && matchesCategory;
-          })
-          .toList();
-    });
+            final senderId = data['senderId'] ?? '';
+            final message = data['text'] ?? '';
+            final timestamp = data['timestamp'];
+
+            if (senderId.isNotEmpty &&
+                message.isNotEmpty &&
+                timestamp != null &&
+                !latestMessages.containsKey(senderId)) {
+              latestMessages[senderId] = {
+                'lastMessage': message,
+                'timestamp': timestamp,
+                'customerId': senderId,
+              };
+            }
+          }
+          return latestMessages.values.toList();
+        });
   }
 
-  Widget _buildPlaceholder(String text) {
-    return Container(
-      width: 60,
-      height: 60,
-      decoration: BoxDecoration(
-        color: Colors.green.shade300,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        text.isNotEmpty ? text[0].toUpperCase() : '?',
-        style: const TextStyle(
-          fontSize: 28,
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
+  Future<String> _getCustomerName(String customerId) async {
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(customerId)
+        .get();
+    return doc.exists ? doc.data()!['name'] ?? 'Unknown' : 'Unknown';
+  }
+
+  Future<Map<String, dynamic>> _getMyAverageRating() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('ratings')
+        .doc(currentUser?.uid)
+        .collection('reviews')
+        .get();
+
+    if (snapshot.docs.isEmpty) return {'average': 0.0, 'count': 0};
+
+    double total = 0;
+    for (var doc in snapshot.docs) {
+      final rating = doc.data()['rating'];
+      if (rating is num) total += rating.toDouble();
+    }
+
+    double avg = total / snapshot.docs.length;
+    return {'average': avg, 'count': snapshot.docs.length};
+  }
+
+  /// ✅ NEW: Get Total Earnings & Orders Count
+  Future<Map<String, dynamic>> _getMyEarnings() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('orders')
+        .where('farmerId', isEqualTo: currentUser?.uid ?? '')
+        .get();
+
+    double totalEarnings = 0;
+    int totalOrders = snapshot.docs.length;
+
+    for (var doc in snapshot.docs) {
+      final farmerAmount = doc.data()['farmerAmount'];
+      if (farmerAmount is num) totalEarnings += farmerAmount.toDouble();
+    }
+
+    return {'totalEarnings': totalEarnings, 'totalOrders': totalOrders};
+  }
+
+  Widget _buildStars(double avg) {
+    return Row(
+      children: List.generate(
+        5,
+        (index) => Icon(
+          Icons.star,
+          size: 18,
+          color: avg >= index + 1 ? Colors.orange : Colors.grey,
         ),
       ),
     );
   }
 
+  Future<void> _logout() async {
+    await FirebaseAuth.instance.signOut();
+    if (!mounted) return;
+    Navigator.of(context).pushReplacementNamed('/');
+  }
+
   @override
   Widget build(BuildContext context) {
+    final farmerId = currentUser?.uid ?? '';
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Farmer Dashboard'),
-        backgroundColor: Colors.green[700],
+        automaticallyImplyLeading: false,
+        title: const Text('🐓 Farmer Dashboard'),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const LogoutScreen()),
-              );
-            },
             tooltip: 'Logout',
+            onPressed: _logout,
           ),
         ],
+        backgroundColor: Colors.green.shade700,
+        foregroundColor: Colors.white,
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.green[700],
+      backgroundColor: Colors.green.shade50,
+      floatingActionButton: FloatingActionButton.extended(
+        icon: const Icon(Icons.add),
+        label: const Text("Add Product"),
+        backgroundColor: Colors.green.shade700,
         onPressed: () {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const AddProductScreen()),
           );
         },
-        tooltip: 'Add Product',
-        child: const Icon(Icons.add),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          children: [
-            TextField(
-              decoration: InputDecoration(
-                labelText: 'Search Products',
-                prefixIcon: const Icon(Icons.search, color: Colors.green),
-                border: const OutlineInputBorder(),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(
-                    color: Colors.green.shade700,
-                    width: 2,
-                  ),
-                ),
-              ),
-              onChanged: (value) => setState(() => _searchQuery = value),
-            ),
-            const SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              value: _selectedCategory,
-              items: _categories
-                  .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
-                  .toList(),
-              onChanged: (value) => setState(() => _selectedCategory = value!),
-              decoration: InputDecoration(
-                labelText: 'Filter by Category',
-                border: const OutlineInputBorder(),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(
-                    color: Colors.green.shade700,
-                    width: 2,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: StreamBuilder<List<Product>>(
-                stream: _getFilteredProducts(),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              /// ⭐ Average Rating
+              FutureBuilder<Map<String, dynamic>>(
+                future: _getMyAverageRating(),
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Center(
-                      child: CircularProgressIndicator(
-                        color: Colors.green[700],
+                  final avg = snapshot.data?['average'] ?? 0.0;
+                  final count = snapshot.data?['count'] ?? 0;
+                  return Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 3,
+                    child: ListTile(
+                      leading: const Icon(Icons.star, color: Colors.orange),
+                      title: const Text(
+                        "Your Average Rating",
+                        style: TextStyle(fontWeight: FontWeight.bold),
                       ),
-                    );
-                  }
+                      subtitle: Row(
+                        children: [
+                          _buildStars(avg),
+                          const SizedBox(width: 8),
+                          Text("(${avg.toStringAsFixed(1)}/5, $count reviews)"),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
 
-                  final products = snapshot.data ?? [];
+              /// ✅ NEW: Earnings Summary
+              FutureBuilder<Map<String, dynamic>>(
+                future: _getMyEarnings(),
+                builder: (context, snapshot) {
+                  final total = snapshot.data?['totalEarnings'] ?? 0.0;
+                  final orders = snapshot.data?['totalOrders'] ?? 0;
+                  return Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 3,
+                    child: ListTile(
+                      leading: const Icon(
+                        Icons.monetization_on,
+                        color: Colors.green,
+                      ),
+                      title: const Text(
+                        "Your Total Earnings",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        "Ksh ${total.toStringAsFixed(2)} from $orders orders",
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
 
-                  if (products.isEmpty) {
-                    return const Center(child: Text("No matching products."));
-                  }
+              /// 📦 My Products
+              const Text(
+                '📦 My Products',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 250,
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: _getMyProducts(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return const Center(
+                        child: Text('No products listed yet.'),
+                      );
+                    }
+                    final products = snapshot.data!.docs;
 
-                  return ListView.builder(
-                    itemCount: products.length,
-                    itemBuilder: (context, index) {
-                      final p = products[index];
-                      return Card(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 4,
-                        margin: const EdgeInsets.symmetric(vertical: 8),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.all(12),
-                          leading: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: p.imageUrl.isEmpty
-                                ? _buildPlaceholder(p.name)
-                                : Image.network(
-                                    p.imageUrl,
-                                    width: 60,
-                                    height: 60,
-                                    fit: BoxFit.cover,
-                                    loadingBuilder:
-                                        (context, child, loadingProgress) {
-                                          if (loadingProgress == null) {
-                                            return child;
-                                          }
-                                          return SizedBox(
-                                            width: 60,
-                                            height: 60,
-                                            child: Center(
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: Colors.green[700],
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                    errorBuilder:
-                                        (context, error, stackTrace) =>
-                                            _buildPlaceholder(p.name),
+                    return ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: products.length,
+                      itemBuilder: (context, index) {
+                        final data =
+                            products[index].data() as Map<String, dynamic>;
+                        final name = data['name'] ?? 'N/A';
+                        final price = data['price'] ?? 'N/A';
+                        final qty = data['quantity'] ?? 0;
+
+                        return Container(
+                          width: 200,
+                          margin: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Card(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 4,
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
                                   ),
-                          ),
-                          title: Text(
-                            p.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                                  const SizedBox(height: 8),
+                                  Text('Price: Ksh $price'),
+                                  Text('Quantity: $qty'),
+                                ],
+                              ),
                             ),
                           ),
-                          subtitle: Text("Ksh ${p.price} | Qty: ${p.quantity}"),
-                          trailing: Wrap(
-                            spacing: 12,
-                            children: [
-                              IconButton(
-                                icon: Icon(
-                                  Icons.edit,
-                                  color: Colors.green[700],
-                                ),
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) =>
-                                          AddProductScreen(product: p),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              /// 💬 Inquiries
+              const Text(
+                '💬 Customer Inquiries',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              StreamBuilder<List<Map<String, dynamic>>>(
+                stream: _getInquiries(farmerId),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(child: Text('No messages yet.'));
+                  }
+
+                  final conversations = snapshot.data!;
+                  return ListView.builder(
+                    physics: const NeverScrollableScrollPhysics(),
+                    shrinkWrap: true,
+                    itemCount: conversations.length,
+                    itemBuilder: (context, index) {
+                      final convo = conversations[index];
+                      final lastMessage = convo['lastMessage'] ?? '';
+                      final timestamp = convo['timestamp'];
+                      final customerId = convo['customerId'] ?? '';
+
+                      return FutureBuilder<String>(
+                        future: _getCustomerName(customerId),
+                        builder: (context, nameSnapshot) {
+                          final customerName =
+                              nameSnapshot.data ?? 'Loading...';
+
+                          return Card(
+                            margin: const EdgeInsets.symmetric(vertical: 6),
+                            child: ListTile(
+                              leading: const CircleAvatar(
+                                backgroundColor: Colors.green,
+                                child: Icon(Icons.person, color: Colors.white),
+                              ),
+                              title: Text(customerName),
+                              subtitle: Text(
+                                lastMessage,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              trailing: timestamp is Timestamp
+                                  ? Text(
+                                      timestamp
+                                          .toDate()
+                                          .toLocal()
+                                          .toString()
+                                          .split('.')[0],
+                                      style: const TextStyle(fontSize: 10),
+                                    )
+                                  : null,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ChatScreen(
+                                      currentUserId: farmerId,
+                                      otherUserId: customerId,
+                                      otherUserName: customerName,
                                     ),
-                                  ).then((_) => setState(() {}));
-                                },
-                                tooltip: 'Edit Product',
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  Icons.delete,
-                                  color: Colors.red[700],
-                                ),
-                                onPressed: () => _deleteProduct(p.id),
-                                tooltip: 'Delete Product',
-                              ),
-                            ],
-                          ),
-                        ),
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        },
                       );
                     },
                   );
                 },
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

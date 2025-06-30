@@ -39,18 +39,29 @@ class _ChatScreenState extends State<ChatScreen> {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
+    // 🟢 For this logic: assume the OTHER user is the customer.
+    // Adjust if your flows differ.
+    final customerId = widget.otherUserId;
+
     final messageData = {
       'senderId': widget.currentUserId,
       'receiverId': widget.otherUserId,
       'text': text,
       'timestamp': FieldValue.serverTimestamp(),
+      'customerId': customerId, // ✅ Needed for FarmerChatsScreen
     };
 
+    final chatId = _getChatId();
+
+    // ✅ Save in chats collection for conversation thread
     await FirebaseFirestore.instance
         .collection('chats')
-        .doc(_getChatId())
+        .doc(chatId)
         .collection('messages')
         .add(messageData);
+
+    // ✅ Also save in top-level messages for listing chats
+    await FirebaseFirestore.instance.collection('messages').add(messageData);
 
     _messageController.clear();
   }

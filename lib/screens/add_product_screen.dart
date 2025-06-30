@@ -70,23 +70,35 @@ class _AddProductScreenState extends State<AddProductScreen> {
         'farmerId': user.uid,
       };
 
-      if (widget.product != null) {
-        await FirebaseFirestore.instance
-            .collection('products')
-            .doc(widget.product!.id)
-            .update(productData);
+      final productsRef = FirebaseFirestore.instance.collection('products');
+
+      // ⚡ Check if product exists
+      final existing = await productsRef
+          .where('farmerId', isEqualTo: user.uid)
+          .where('description', isEqualTo: _selectedCategory)
+          .limit(1)
+          .get();
+
+      if (existing.docs.isNotEmpty) {
+        final doc = existing.docs.first;
+
+        final existingData = doc.data();
+        final newQty =
+            (existingData['quantity'] ?? 0) +
+            int.parse(_quantityController.text.trim());
+        final newPrice = double.parse(_priceController.text.trim());
+
+        await doc.reference.update({'quantity': newQty, 'price': newPrice});
 
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text("✅ Product updated")));
+        ).showSnackBar(const SnackBar(content: Text("✅ Stock updated!")));
       } else {
-        await FirebaseFirestore.instance
-            .collection('products')
-            .add(productData);
+        await productsRef.add(productData);
 
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text("✅ Product added")));
+        ).showSnackBar(const SnackBar(content: Text("✅ Product added!")));
       }
 
       Navigator.pop(context);

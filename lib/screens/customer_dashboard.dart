@@ -6,7 +6,8 @@ import '../models/product_model.dart';
 import 'logout_screen.dart';
 import 'my_orders_screen.dart';
 import 'place_order_screen.dart';
-import 'product_detail_screen.dart'; // Add this import
+import 'product_detail_screen.dart';
+import 'profile_update_screen.dart';
 
 class CustomerDashboard extends StatefulWidget {
   const CustomerDashboard({Key? key}) : super(key: key);
@@ -78,7 +79,6 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
 
   Widget _buildProductImage(String imageUrl, String name) {
     if (imageUrl.isEmpty) return _placeholderImage(name);
-
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: Image.network(
@@ -113,9 +113,20 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
     return Scaffold(
       backgroundColor: Colors.green[50],
       appBar: AppBar(
-        backgroundColor: Colors.green,
-        title: const Text("Customer Dashboard"),
+        backgroundColor: Colors.green[700],
+        automaticallyImplyLeading: false, // ✅ No back button!
+        title: const Text("🐓 Customer Dashboard"),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.person),
+            tooltip: "Profile",
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ProfileUpdateScreen()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.receipt_long),
             tooltip: "My Orders",

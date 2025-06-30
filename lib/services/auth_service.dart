@@ -1,46 +1,66 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  /// Sign in existing users
-  Future<User?> signIn(String email, String password) async {
+  /// Register a new user
+  Future<User?> register(
+    String email,
+    String password,
+    String role,
+    String name,
+    String phone,
+  ) async {
     try {
-      final result = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      return result.user;
-    } catch (e) {
-      print('🔒 signIn error: $e');
-      return null;
-    }
-  }
+      // ✅ Create user in Firebase Auth
+      UserCredential userCredential = await _auth
+          .createUserWithEmailAndPassword(email: email, password: password);
 
-  /// Register new users with role
-  Future<User?> register(String email, String password, String role) async {
-    try {
-      final result = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      final user = result.user;
+      User? user = userCredential.user;
+
       if (user != null) {
-        // Save user info + role
+        // ✅ Save user details to Firestore
         await _firestore.collection('users').doc(user.uid).set({
           'email': email,
           'role': role,
+          'name': name,
+          'phone': phone,
+          'createdAt': FieldValue.serverTimestamp(),
         });
+
+        return user; // ✅ Success
       }
-      return user;
     } catch (e) {
-      print('🆕 register error: $e');
+      print('Registration error: $e');
+      return null; // ✅ Something failed
+    }
+
+    return null; // Just in case
+  }
+
+  /// Sign in user
+  Future<User?> signIn(String email, String password) async {
+    try {
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return userCredential.user;
+    } catch (e) {
+      print('Sign in error: $e');
       return null;
     }
   }
 
-  /// Sign out
-  Future<void> signOut() async => _auth.signOut();
+  /// Sign out user
+  Future<void> signOut() async {
+    await _auth.signOut();
+  }
+
+  /// Get current user
+  User? getCurrentUser() {
+    return _auth.currentUser;
+  }
 }

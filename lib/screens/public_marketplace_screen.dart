@@ -50,7 +50,7 @@ class _PublicMarketplaceScreenState extends State<PublicMarketplaceScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Kuku Marketplace"),
+        title: const Text("Public Marketplace"),
         actions: [
           TextButton(
             onPressed: () {
@@ -83,7 +83,7 @@ class _PublicMarketplaceScreenState extends State<PublicMarketplaceScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Search field
+            // Search
             TextField(
               decoration: InputDecoration(
                 labelText: 'Search products...',
@@ -96,9 +96,9 @@ class _PublicMarketplaceScreenState extends State<PublicMarketplaceScreen> {
               ),
               onChanged: (value) => setState(() => _searchQuery = value),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
 
-            // Category dropdown
+            // Category filter
             DropdownButtonFormField<String>(
               value: _selectedCategory,
               items: _categories
@@ -116,7 +116,7 @@ class _PublicMarketplaceScreenState extends State<PublicMarketplaceScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Products list
+            // Products
             Expanded(
               child: StreamBuilder<List<Product>>(
                 stream: _getProducts(),
@@ -128,14 +128,15 @@ class _PublicMarketplaceScreenState extends State<PublicMarketplaceScreen> {
                   final products = snapshot.data ?? [];
 
                   if (products.isEmpty) {
-                    return const Center(child: Text("No products found."));
+                    return const Center(
+                      child: Text("No products found right now."),
+                    );
                   }
 
                   return ListView.builder(
                     itemCount: products.length,
                     itemBuilder: (context, index) {
                       final product = products[index];
-
                       return FutureBuilder<String>(
                         future: _getFarmerEmail(product.farmerId),
                         builder: (context, farmerSnapshot) {
@@ -143,30 +144,45 @@ class _PublicMarketplaceScreenState extends State<PublicMarketplaceScreen> {
                               farmerSnapshot.data ?? 'Loading...';
 
                           return Card(
+                            elevation: 3,
                             margin: const EdgeInsets.symmetric(vertical: 8),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            elevation: 2,
                             child: ListTile(
+                              contentPadding: const EdgeInsets.all(12),
                               title: Text(
                                 product.name,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
+                                  fontSize: 16,
                                 ),
                               ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    "Ksh ${product.price} • Qty: ${product.quantity}",
-                                  ),
-                                  Text("👨‍🌾 $farmerEmail"),
-                                ],
+                              subtitle: Padding(
+                                padding: const EdgeInsets.only(top: 4.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "💲 Ksh ${product.price} • Qty: ${product.quantity}",
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      "👨‍🌾 Farmer: $farmerEmail",
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                               trailing: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF558B2F),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
@@ -179,7 +195,10 @@ class _PublicMarketplaceScreenState extends State<PublicMarketplaceScreen> {
                                     ),
                                   );
                                 },
-                                child: const Text("Login to Order"),
+                                child: const Text(
+                                  "Login\nTo Order",
+                                  textAlign: TextAlign.center,
+                                ),
                               ),
                             ),
                           );
