@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'chat_screen.dart';
 import 'add_product_screen.dart';
+import 'farmer_orders_screen.dart'; // 👈 Import this
 
 class FarmerDashboard extends StatefulWidget {
   const FarmerDashboard({super.key});
@@ -122,6 +123,7 @@ class _FarmerDashboardState extends State<FarmerDashboard> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text('🐓 Farmer Dashboard'),
+        backgroundColor: Colors.green.shade700,
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -129,8 +131,6 @@ class _FarmerDashboardState extends State<FarmerDashboard> {
             onPressed: _logout,
           ),
         ],
-        backgroundColor: Colors.green.shade700,
-        foregroundColor: Colors.white,
       ),
       backgroundColor: Colors.green.shade50,
       floatingActionButton: FloatingActionButton.extended(
@@ -149,6 +149,23 @@ class _FarmerDashboardState extends State<FarmerDashboard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            ElevatedButton.icon(
+              icon: const Icon(Icons.receipt),
+              label: const Text("Customer Orders"),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const FarmerOrdersScreen()),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green.shade800,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+            const SizedBox(height: 12),
+
             // ⭐ Rating
             FutureBuilder<Map<String, dynamic>>(
               future: _getMyAverageRating(),

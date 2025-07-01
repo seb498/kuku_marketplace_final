@@ -18,12 +18,12 @@ class MyOrdersScreen extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            child: const Text("Cancel"),
             onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
           ),
           ElevatedButton(
-            child: const Text("Yes, Pay"),
             onPressed: () => Navigator.pop(context, true),
+            child: const Text("Yes, Pay"),
           ),
         ],
       ),
@@ -35,15 +35,12 @@ class MyOrdersScreen extends StatelessWidget {
     final data = order.data() as Map<String, dynamic>;
     final total = (data['total'] as num?)?.toDouble() ?? 0.0;
 
-    final commission = total * 0.10;
-    final farmerAmount = total * 0.90;
-
     try {
       await FirebaseFirestore.instance.collection('orders').doc(orderId).update(
         {
           'isPaid': true,
-          'commission': commission,
-          'farmerAmount': farmerAmount,
+          'commission': total * 0.10,
+          'farmerAmount': total * 0.90,
         },
       );
 
@@ -54,6 +51,26 @@ class MyOrdersScreen extends StatelessWidget {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("❌ Failed to update order: $e")));
+    }
+  }
+
+  Future<void> markAsReceived(
+    DocumentSnapshot order,
+    BuildContext context,
+  ) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('orders')
+          .doc(order.id)
+          .update({'isReceived': true});
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("✅ Marked as received")));
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("❌ Failed: $e")));
     }
   }
 
@@ -80,20 +97,15 @@ class MyOrdersScreen extends StatelessWidget {
                   return Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(5, (index) {
-                      final starIndex = index + 1;
                       return IconButton(
                         icon: Icon(
-                          starIndex <= selectedRating
+                          index + 1 <= selectedRating
                               ? Icons.star
                               : Icons.star_border,
                           color: Colors.amber,
-                          size: 32,
                         ),
-                        onPressed: () {
-                          setState(() {
-                            selectedRating = starIndex;
-                          });
-                        },
+                        onPressed: () =>
+                            setState(() => selectedRating = index + 1),
                       );
                     }),
                   );
@@ -104,62 +116,47 @@ class MyOrdersScreen extends StatelessWidget {
                 decoration: const InputDecoration(
                   labelText: 'Comment (optional)',
                 ),
-                maxLines: 2,
               ),
             ],
           ),
           actions: [
             TextButton(
+              onPressed: () => Navigator.pop(context),
               child: const Text('Cancel'),
-              onPressed: () => Navigator.of(context).pop(),
             ),
             ElevatedButton(
               child: const Text('Submit'),
               onPressed: () async {
-                final customerId = FirebaseAuth.instance.currentUser?.uid;
-                if (customerId == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("You must be logged in")),
-                  );
-                  return;
-                }
-
-                final farmerId = data['farmerId'] as String?;
-                if (farmerId == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Farmer ID missing")),
-                  );
-                  return;
-                }
-
-                final reviewData = {
-                  'customerId': customerId,
-                  'rating': selectedRating,
-                  'comment': commentController.text.trim(),
-                  'timestamp': FieldValue.serverTimestamp(),
-                };
+                final uid = FirebaseAuth.instance.currentUser?.uid;
+                final farmerId = data['farmerId'];
+                if (uid == null || farmerId == null) return;
 
                 try {
                   await FirebaseFirestore.instance
                       .collection('ratings')
                       .doc(farmerId)
                       .collection('reviews')
-                      .add(reviewData);
+                      .add({
+                        'customerId': uid,
+                        'rating': selectedRating,
+                        'comment': commentController.text.trim(),
+                        'timestamp': FieldValue.serverTimestamp(),
+                      });
 
                   await FirebaseFirestore.instance
                       .collection('orders')
                       .doc(order.id)
                       .update({'isRated': true});
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Thank you for your rating!')),
-                  );
+                  Navigator.pop(context);
 
-                  Navigator.of(context).pop();
-                } catch (e) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to submit rating: $e')),
+                    const SnackBar(content: Text("✅ Rating submitted")),
                   );
+                } catch (e) {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text("❌ Error: $e")));
                 }
               },
             ),
@@ -171,17 +168,11 @@ class MyOrdersScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = FirebaseAuth.instance.currentUser;
+    final user = FirebaseAuth.instance.currentUser;
 
-    if (currentUser == null) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text("My Orders"),
-          backgroundColor: Colors.green,
-        ),
-        body: const Center(
-          child: Text("You must be logged in to view orders."),
-        ),
+    if (user == null) {
+      return const Scaffold(
+        body: Center(child: Text("Please login to view your orders.")),
       );
     }
 
@@ -193,111 +184,129 @@ class MyOrdersScreen extends StatelessWidget {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('orders')
-            .where('customerId', isEqualTo: currentUser.uid)
+            .where('customerId', isEqualTo: user.uid)
             .orderBy('timestamp', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(child: Text("Error: ${snapshot.error}"));
           }
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final orders = snapshot.data?.docs ?? [];
+          final orders = snapshot.data!.docs;
 
           if (orders.isEmpty) {
-            return const Center(child: Text("No orders found."));
+            return const Center(child: Text("No orders yet."));
           }
 
-          return ListView.separated(
-            padding: const EdgeInsets.all(8),
+          return ListView.builder(
+            padding: const EdgeInsets.all(10),
             itemCount: orders.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final order = orders[index];
               final data = order.data() as Map<String, dynamic>;
 
-              final productName = data['productName'] ?? 'Product';
+              final product = data['productName'] ?? '';
               final image = data['productImage'] ?? '';
-              final quantity = data['quantity'] ?? 0;
-              final total = data['total'] ?? 0.0;
-              final isPaid = data['isPaid'] ?? false;
-              final isRated = data['isRated'] ?? false;
+              final qty = data['quantity'] ?? 0;
+              final double total = (data['total'] as num?)?.toDouble() ?? 0.0;
               final unit = data['unit'] ?? 'Unit';
+              final isPaid = data['isPaid'] ?? false;
+              final isReleased = data['isReleased'] ?? false;
+              final isReceived = data['isReceived'] ?? false;
+              final isRated = data['isRated'] ?? false;
+
               final timestamp = (data['timestamp'] as Timestamp?)?.toDate();
-              final formattedDate = timestamp != null
+              final dateStr = timestamp != null
                   ? "${timestamp.day}/${timestamp.month}/${timestamp.year} ${timestamp.hour}:${timestamp.minute}"
-                  : 'Unknown Date';
+                  : "Unknown date";
+
+              Widget buildImage() {
+                if (image.isEmpty) {
+                  return CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Colors.green,
+                    child: Text(
+                      product.isNotEmpty ? product[0].toUpperCase() : "?",
+                      style: const TextStyle(color: Colors.white, fontSize: 24),
+                    ),
+                  );
+                }
+
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    image,
+                    width: 60,
+                    height: 60,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => CircleAvatar(
+                      radius: 30,
+                      backgroundColor: Colors.green,
+                      child: Text(
+                        product.isNotEmpty ? product[0].toUpperCase() : "?",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }
 
               return Card(
-                elevation: 3,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
+                elevation: 4,
+                margin: const EdgeInsets.symmetric(vertical: 8),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 10,
-                    horizontal: 12,
-                  ),
+                  padding: const EdgeInsets.all(12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       ListTile(
                         contentPadding: EdgeInsets.zero,
-                        leading: image != ''
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.network(
-                                  image,
-                                  width: 60,
-                                  height: 60,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => CircleAvatar(
-                                    radius: 30,
-                                    backgroundColor: Colors.green.shade300,
-                                    child: Text(
-                                      productName[0].toUpperCase(),
-                                      style: const TextStyle(
-                                        fontSize: 24,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              )
-                            : CircleAvatar(
-                                radius: 30,
-                                backgroundColor: Colors.green.shade300,
-                                child: Text(
-                                  productName[0].toUpperCase(),
-                                  style: const TextStyle(
-                                    fontSize: 24,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
+                        leading: buildImage(),
                         title: Text(
-                          productName,
+                          product,
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        subtitle: Text("Qty: $quantity $unit • Ksh $total"),
+                        subtitle: Text("Qty: $qty $unit • Ksh $total"),
                         trailing: Chip(
                           label: Text(
                             isPaid ? "Paid" : "Unpaid",
                             style: const TextStyle(color: Colors.white),
                           ),
-                          backgroundColor: isPaid
-                              ? Colors.green
-                              : Colors.redAccent,
+                          backgroundColor: isPaid ? Colors.green : Colors.red,
                         ),
                       ),
-                      Padding(
-                        padding: const EdgeInsets.only(left: 12),
-                        child: Text("Date: $formattedDate"),
-                      ),
-                      const SizedBox(height: 6),
-                      if (!isPaid)
+                      Text("Date: $dateStr"),
+                      const SizedBox(height: 10),
+
+                      if (!isReleased)
+                        const Text(
+                          "⏳ Waiting for farmer to release...",
+                          style: TextStyle(
+                            color: Colors.orange,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      if (isReleased && !isReceived)
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: ElevatedButton(
+                            onPressed: () => markAsReceived(order, context),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green[700],
+                            ),
+                            child: const Text("Mark as Received"),
+                          ),
+                        ),
+                      if (isReceived && !isPaid)
                         Align(
                           alignment: Alignment.centerRight,
                           child: ElevatedButton(
@@ -312,20 +321,17 @@ class MyOrdersScreen extends StatelessWidget {
                             onPressed: () =>
                                 showRatingDialog(context, order, data),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange[800],
+                              backgroundColor: Colors.orange,
                             ),
                             child: const Text("Rate Farmer"),
                           ),
                         ),
                       if (isPaid && isRated)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6, left: 12),
+                        const Padding(
+                          padding: EdgeInsets.only(top: 6),
                           child: Text(
-                            "Thank you for rating!",
-                            style: TextStyle(
-                              color: Colors.green[800],
-                              fontWeight: FontWeight.bold,
-                            ),
+                            "✅ Thank you for rating!",
+                            style: TextStyle(color: Colors.green),
                           ),
                         ),
                     ],
